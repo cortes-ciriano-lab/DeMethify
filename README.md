@@ -22,7 +22,7 @@ methfreq|Methylation frequency CSV file (values between 0 and 1)
 ref|Reference methylation matrix CSV file
 outdir|Output directory (can exist but must be empty)
 
-### Optional Arugments
+### Optional Arguments
 Argument|Description
 ---|---
 counts|Read counts CSV file

@@ -21,6 +21,7 @@ Argument|Description
 methfreq|Methylation frequency CSV file (values between 0 and 1)
 ref|Reference methylation matrix CSV file
 outdir|Output directory (can exist but must be empty)
+nbunknown|Number of unknown cell types to estimate 
 
 ### Optional Arguments
 Argument|Description

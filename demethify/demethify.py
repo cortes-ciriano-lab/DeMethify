@@ -197,12 +197,14 @@ def main():
     
     # read csv files
     meth_f = pd.read_csv(args.methfreq).values
-    meth_f.fillna(0, inplace = True)
     ref = pd.read_csv(args.ref).values
-    ref.fillna(0, inplace = True)
+    if(args.fillna):
+        meth_f.fillna(0, inplace = True)
+        ref.fillna(0, inplace = True)
     if(not(args.noreadformat)):
         counts = pd.read_csv(args.counts).values
-        counts.fillna(0, inplace = True)
+        if(args.fillna):
+            counts.fillna(0, inplace = True)
     else:
         counts = np.ones_like(meth_f)
         

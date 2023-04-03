@@ -7,7 +7,8 @@ import pandas as pd
 from time import time
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import FastICA
-
+import warnings
+warnings.filterwarnings("ignore")
 
 logo = """     
     ____                      __  __    _ ____     
@@ -35,7 +36,8 @@ def fs_irls(x, d_x, R_full, tol = 1e-14, n_iter = 10000):
     
     for k in range(n_iter):
         gamma = R_full @ alpha
-        W = np.divide(d_x, (gamma * (1 - gamma) + 1e-16))
+        W = np.divide(d_x, (gamma * (1 - gamma)) + 1e-16)
+        W[np.isnan(W)] = 1e-16
         z = np.divide(x, d_x)
         z[np.isnan(z)] = 1e-16
         a =  wls_deconv(R_full, z, W)
@@ -179,6 +181,7 @@ def main():
     parser.add_argument('--nbunknown', nargs= 1, type=int, help="Number of unknown cell types to estimate ")
     parser.add_argument('--termination', nargs= 1, type=float, default = 1e-2 , help='Termination condition for cost function (default = 1e-2)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory (must be empty)')
+    parser.add_argument('--fillna', action = "store_true", help='Replace every NA by 0 in the given data')
     args = parser.parse_args()
     
     print(logo)
@@ -194,9 +197,12 @@ def main():
     
     # read csv files
     meth_f = pd.read_csv(args.methfreq).values
+    meth_f.fillna(0, inplace = True)
     ref = pd.read_csv(args.ref).values
+    ref.fillna(0, inplace = True)
     if(not(args.noreadformat)):
         counts = pd.read_csv(args.counts).values
+        counts.fillna(0, inplace = True)
     else:
         counts = np.ones_like(meth_f)
         

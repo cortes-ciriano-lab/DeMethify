@@ -30,3 +30,4 @@ counts|Read counts CSV file
 noreadformat|Flag to use when the data isn't using the read format (like Illumina epic arrays)
 iterations|Numbers of iterations for outer and inner loops (default = 50000, 50)
 termination|Termination condition for cost function (default = 1e-2)
+fillna|Replace every NA by 0 in the given data

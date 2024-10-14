@@ -18,7 +18,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'demethify=DeMethify.demethify:main',
+            'demethify=demethify.demethify:main',
         ],
     },
     python_requires='>=3.6',                  

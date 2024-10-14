@@ -16,6 +16,11 @@ setup(
         'pandas',
         'scikit-learn'
     ],
+    entry_points={
+        'console_scripts': [
+            'demethify=DeMethify.demethify:main',
+        ],
+    },
     python_requires='>=3.6',                  
     classifiers=[                              
         'Programming Language :: Python :: 3',

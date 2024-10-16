@@ -1,10 +1,10 @@
 import os
 import argparse
-
 import numpy as np
 import numpy.random as rd
 import pandas as pd
 from time import time
+from numba import njit
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import FastICA
 import warnings
@@ -50,43 +50,28 @@ def fs_irls(x, d_x, R_full, tol = 1e-14, n_iter = 10000):
     return alpha
 
 
-
+@njit
 def cost_f_w(y, R, alpha, d_x):
-    return np.linalg.norm(d_x * (y - R @ alpha))**2
+    return np.linalg.norm(d_x * (y - R @ alpha))
 
-
-
-def foo(tab):
-    n = tab.shape[0]
-    for k in range(n):
-        if(tab[k][0] > 0):
-            num = k
-            
-    return num
-
-
-
-def simplex_proj(v):
-    n = v.shape[0]
-    v_ = v[(-v[:, 0]).argsort()]
-    v_temp = (1 - np.reshape(np.cumsum(v_), (n,1))) * (1 / np.reshape(np.array(range(1,n + 1)), (n, 1))) + v_
-    rho = foo(v_temp)
-    lamb = (1 - np.cumsum(v_)[rho]) / (rho + 1)
-    w = (v + lamb).clip(min=0)
-    return w
-
-
-
-def simplex_proj_md(v):
-    x, y = v.shape
-    tab_v = []
-    for k in range(y):
-        tab_v.append(simplex_proj(np.reshape(v[:,k], (x, 1))))
-        
-    v = np.concatenate(tab_v, axis = 1)
+@njit
+def projection_simplex_sort_2d(v, z=1):
+    p, n = v.shape
+    w = np.zeros_like(v)
     
-    return v
+    for i in range(n):
+        u = np.sort(v[:, i])[::-1]  
+        pi = np.cumsum(u) - z
+        rho = -1
+        for j in range(p):
+            if u[j] - pi[j] / (j + 1) > 0:
+                rho = j
 
+        theta = pi[rho] / (rho + 1)
+        for j in range(p):
+            w[j, i] = max(v[j, i] - theta, 0)
+    
+    return w
 
 
 def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_irls):
@@ -99,13 +84,7 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_ir
         u = tt.fit_transform(meth_frequency)
         u_ = (u - min(u)) 
         u = u_ / max(u_)
-# =============================================================================
-#     elif(init_option == 'PRmeth'): ## Hierarchichal clustering by PRmeth
-#         r['source']('PRMeth-main/PRMeth/R/prmeth.R')
-#         RefFreeCellMixInitialize = robjects.globalenv['RefFreeCellMixInitialize']
-#         u = RefFreeCellMixInitialize(meth_frequency, n_u,"binary")
-# =============================================================================
-    # elif(init_option == ''): ## Hierarchichal clustering with sklearn
+        
     R = np.c_[R_trunc, u]
     
     for k in range(nb):
@@ -118,70 +97,100 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_ir
         
     return u, R, alpha
 
+@njit
+def update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x):
+    for i in range(n_iter2):
+        a0 = a1
+        a1 = (1 + np.sqrt(1 + 4 * a0 * a0)) / 2
+        beta_w = min((a0 - 1) / a1, 0.9999 *  np.sqrt(l_w_ / l_w))
+        u_temp = u + beta_w * (u - u_)
+        u_ = u
+        u = np.clip((u_temp + (d_x * ((meth_frequency - R_trunc @ alpha[:-n_u] - u_temp @ alpha[-n_u:])) @ alpha[-n_u:].T) / l_w), 0, 1)
+        l_w_ = l_w
+    return u, u_, a1, l_w_
+    
+@njit
+def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
+    for j in range(n_iter2):
+        a0 = a2
+        a2 = (1 + np.sqrt(1 + 4 * a0 * a0)) / 2
+        beta_h = min((a0 - 1) / a2, 0.9999 *  np.sqrt(l_h_ / l_h))
+        alpha_temp = alpha + beta_h * (alpha - alpha_)
+        alpha_ = alpha
+        alpha = projection_simplex_sort_2d(alpha_temp + (R.T @ (d_x * (meth_frequency - R @ alpha_temp))) / l_h)
+        l_h_ = l_h
+    return alpha, alpha_, a2, l_h_
+    
 
 
-def mdwbssmf_deconv(meth_frequency, d_x, R_trunc, n_u, init_option, n_iter1 = 1000, n_iter2 = 50, tol = 1e-3):
+@njit
+def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=100000, n_iter2=50, tol=1e-3):
     nb_cpg, nb_celltypes = R_trunc.shape
-    a1 = 1
-    a2 = 1
-    u, R, alpha = init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_irls)
-    u_ = u
-    alpha_ = alpha
-    l_w = np.linalg.norm(alpha[-n_u:]) * np.linalg.norm(alpha[-n_u:].T) * np.linalg.norm(d_x)
+    a1 = 1.0
+    a2 = 1.0
+    u_ = u.copy()
+    alpha_ = alpha.copy()
+    
+    l_w = (np.linalg.norm(alpha[-n_u:]) * 
+           np.linalg.norm(alpha[-n_u:].T) * 
+           np.linalg.norm(d_x.astype(np.float64)))
     l_w_ = l_w
-    l_h = np.linalg.norm(R.T) * np.linalg.norm(d_x) * np.linalg.norm(R)
+    
+    l_h = (np.linalg.norm(R.T) * 
+           np.linalg.norm(d_x.astype(np.float64)) * 
+           np.linalg.norm(R))
     l_h_ = l_h
-    cf = cost_f_w(meth_frequency, R, alpha, d_x)
+    
+    cf = cost_f_w(meth_frequency, R, alpha, d_x)  
     
     for k in range(n_iter1):
         cf_0 = cf
-        for i in range(n_iter2):
-            a0 = a1
-            a1 = (1 + np.sqrt(1 + 4 * a0 * a0)) / 2
-            beta_w = min((a0 - 1) / a1, 0.9999 *  np.sqrt(l_w_ / l_w))
-            u_temp = u + beta_w * (u - u_)
-            u_ = u
-            u = (u_temp + (d_x * ((meth_frequency - R_trunc @ alpha[:-n_u] - u_temp @ alpha[-n_u:])) @ alpha[-n_u:].T) / l_w).clip(min = 0, max = 1)
-            l_w_ = l_w
-        
-        R = np.c_[R_trunc, u]
-        l_h = np.linalg.norm(R.T) * np.linalg.norm(d_x) * np.linalg.norm(R)
-        
-        for j in range(n_iter2):
-            a0 = a2
-            a1 = (1 + np.sqrt(1 + 4 * a0 * a0)) / 2
-            beta_h = min((a0 - 1) / a2, 0.9999 *  np.sqrt(l_h_ / l_h))
-            alpha_temp = alpha + beta_h * (alpha - alpha_)
-            alpha_ = alpha
-            alpha = simplex_proj_md((alpha_temp + (R.T @ (d_x * (meth_frequency - R @ alpha_temp))) / l_h))
-            l_h_ = l_h
-        
-        l_w = np.linalg.norm(alpha[-n_u:]) * np.linalg.norm(alpha[-n_u:].T) * np.linalg.norm(d_x)
-        
+
+        u, u_, a1, l_w_ = update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x)
+
+        R = np.hstack((R_trunc, u.reshape(-1, 1)))
+
+        l_h = (np.linalg.norm(R.T) * 
+               np.linalg.norm(d_x.astype(np.float64)) * 
+               np.linalg.norm(R))
+
+        alpha, alpha_, a2, l_h_ = update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency)
+
+        l_w = (np.linalg.norm(alpha[-n_u:]) * 
+               np.linalg.norm(alpha[-n_u:].T) * 
+               np.linalg.norm(d_x.astype(np.float64)))
+
         cf = cost_f_w(meth_frequency, R, alpha, d_x)
-        
-        if(k % 100 == 0):
-            print(str(k) + ' iterations, ', abs(cf - cf_0))
-        
-        if(abs(cf - cf_0) < tol):
+
+        if abs(cf - cf_0) < tol:
             break
-        
-    return R, alpha
 
-
+    return u, alpha
 
 def main():
-    
+
+    # Create the argument parser
     parser = argparse.ArgumentParser(description="DeMethify - Partial reference-based Methylation Deconvolution")
-    parser.add_argument('--methfreq', nargs='?', type=str, required=True, help='Methylation frequency CSV file (values between 0 and 1)')
-    parser.add_argument('--noreadformat', action ="store_true", help="Flag to use when the data isn't using the read format (like Illumina epic arrays)")
-    parser.add_argument('--counts', nargs='?', type=str, help='Read counts CSV file')
-    parser.add_argument('--ref', nargs='?', type=str, required=True, help='Reference methylation matrix CSV file')
-    parser.add_argument('--iterations', default = [50000,50], nargs= 2, type=int, help='Numbers of iterations for outer and inner loops (default = 50000, 50)')
-    parser.add_argument('--nbunknown', nargs= 1, type=int, help="Number of unknown cell types to estimate ")
-    parser.add_argument('--termination', nargs= 1, type=float, default = 1e-2 , help='Termination condition for cost function (default = 1e-2)')
+
+    # Add regular arguments
+    parser.add_argument('--methfreq', nargs='+', type=str, required=True, help='Methylation frequency file path (values between 0 and 1)')
+    parser.add_argument('--ref', nargs='?', type=str, required=True, help='Methylation reference matrix file path')
+    parser.add_argument('--iterations', default=[50000, 50], nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default = 50000, 50)')
+    parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
+    parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
+    parser.add_argument('--init', nargs="?", help='Initialisation option')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory (must be empty)')
-    parser.add_argument('--fillna', action = "store_true", help='Replace every NA by 0 in the given data')
+    parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
+
+    # Create a mutually exclusive group
+    group = parser.add_mutually_exclusive_group()
+
+    # Add conflicting arguments to the group
+    group.add_argument('--bedmethyl', action='store_true', help="Flag to indicate that the input will be bedmethyl files, modkit style")
+    group.add_argument('--counts', nargs='+', type=str, help='Read counts file path')
+    group.add_argument('--noreadformat', action="store_true", help="Flag to use when the data isn\'t using the read format (e.g Illumina epic arrays)")
+
+    # Parse the arguments
     args = parser.parse_args()
     
     print(logo)
@@ -191,30 +200,49 @@ def main():
     if not os.path.exists(outdir):
         print(f'Creating directory {outdir} to store results')
         os.mkdir(outdir)
-    elif os.listdir(outdir):
-        exit(f'Output directory "{outdir}" already exists and contains files. Please remove the files or supply a different directory name.')
-        
     
+    # read bedmethyl files (modkit output)
+    if(args.bedmethyl):
+        ref = pd.read_csv(args.ref, sep='\t').iloc[:, 3:]
+        header = list(ref.columns)
+        ref = ref.values
+        list_meth_freq = []
+        list_counts = []
+        for bed in args.methfreq:
+            temp = pd.read_csv(bed, sep='\t')
+            if(args.fillna):
+                temp = temp.fillna(0, inplace = True)
+            list_meth_freq.append(temp["percent_modified"].values / 100)
+            list_counts.append(temp["valid_coverage"].values)
+        meth_f = np.column_stack(list_meth_freq)
+        counts = np.column_stack(list_counts)
+
     # read csv files
-    meth_f = pd.read_csv(args.methfreq).values
-    ref = pd.read_csv(args.ref).values
-    if(args.fillna):
-        meth_f.fillna(0, inplace = True)
-        ref.fillna(0, inplace = True)
-    if(not(args.noreadformat)):
-        counts = pd.read_csv(args.counts).values
-        if(args.fillna):
-            counts.fillna(0, inplace = True)
     else:
-        counts = np.ones_like(meth_f)
+        meth_f = pd.read_csv(args.methfreq).values
+        ref = pd.read_csv(args.ref)
+        header = list(ref.columns)
+        ref = ref.values
+        if(args.fillna):
+            meth_f.fillna(0, inplace = True)
+            ref.fillna(0, inplace = True)
+        if(not(args.noreadformat)):
+            counts = pd.read_csv(args.counts).values
+            if(args.fillna):
+                counts.fillna(0, inplace = True)
+        else:
+            counts = np.ones_like(meth_f)
         
     
     # deconvolution
     time_start = time()
-    if(args.nbunknown[0] > 0):
-        ref_estimate, proportions = mdwbssmf_deconv(meth_f, counts, ref, args.nbunknown[0], 'ICA', n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
-        pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False)
-    elif(args.nbunknown[0] == 0):
+    if(args.nbunknown[0] > 0 and meth_f.shape[1] > 1):
+        u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls)
+        ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+        unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
+        header += unknown_header
+        pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+    elif(args.nbunknown[0] == 0 or meth_f.shape[1] == 1):
         prop_tab = []
         for k in range(ref.shape[1] - 1):
             prop_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
@@ -225,7 +253,9 @@ def main():
     time_tot = time() - time_start
     
     # saving output files
-    pd.DataFrame(proportions).to_csv(outdir + '/celltypes_proportions.csv', index = False)
+    proportions = pd.DataFrame(proportions)
+    proportions.index = header
+    proportions.to_csv(outdir + '/celltypes_proportions.csv', index = True, header = args.methfreq)
     
     f = open(os.path.join(outdir, 'time.log'), "w+")
     f.write("Total execution time = " + str(time_tot) + " s")

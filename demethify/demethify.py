@@ -264,6 +264,5 @@ def main():
     print("All demethified! Results in " + outdir)
     
     
-    
 if __name__ == "__main__":
 	main()

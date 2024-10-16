@@ -179,7 +179,7 @@ def main():
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
     parser.add_argument('--init', nargs="?", help='Initialisation option')
-    parser.add_argument('--outdir', nargs='?', required=True, help='Output directory (must be empty)')
+    parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
 
     # Create a mutually exclusive group

@@ -175,7 +175,7 @@ def main():
     # Add regular arguments
     parser.add_argument('--methfreq', nargs='+', type=str, required=True, help='Methylation frequency file path (values between 0 and 1)')
     parser.add_argument('--ref', nargs='?', type=str, required=True, help='Methylation reference matrix file path')
-    parser.add_argument('--iterations', default=[50000, 50], nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default = 50000, 50)')
+    parser.add_argument('--iterations', default=[10000, 20], nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default = 10000, 20)')
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
     parser.add_argument('--init', nargs="?", help='Initialisation option')

@@ -214,7 +214,7 @@ def main():
         for bed in args.methfreq:
             temp = pd.read_csv(bed, sep='\t')
             if(args.fillna):
-                temp = temp.fillna(0, inplace = True)
+                temp = temp.fillna(0)
             list_meth_freq.append(temp["percent_modified"].values / 100)
             list_counts.append(temp["valid_coverage"].values)
         meth_f = np.column_stack(list_meth_freq)
@@ -227,8 +227,8 @@ def main():
         header = list(ref.columns)
         ref = ref.values
         if(args.fillna):
-            meth_f.fillna(0, inplace = True)
-            ref.fillna(0, inplace = True)
+            meth_f = meth_f.fillna(0)
+            ref = ref.fillna(0)
         if(not(args.noreadformat)):
             counts = pd.read_csv(args.counts).values
             if(args.fillna):

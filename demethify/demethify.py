@@ -246,10 +246,7 @@ def main():
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
     elif(args.nbunknown[0] == 0 and meth_f.shape[1] == 1):
-        prop_tab = []
-        for k in range(ref.shape[1] - 1):
-            prop_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
-        proportions = np.concatenate(prop_tab, axis = 1)
+        proportions = fs_irls(counts * meth_f, counts, ref)
     else:
         exit(f'Invalid number of unknown value! : "{args.nbunknown}" ')
         

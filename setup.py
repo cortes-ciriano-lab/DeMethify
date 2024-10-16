@@ -15,14 +15,15 @@ setup(
         'numpy==1.26.4',
         'pandas==2.2.2',
         'scikit-learn==1.2.2',
-        'numba==0.59.0'
+        'numba==0.59.0',
+        'scipy==1.11.4'
     ],
     entry_points={
         'console_scripts': [
             'demethify=demethify.demethify:main',
         ],
     },
-    python_requires='>=3.6',                  
+    python_requires='==3.11.8',                  
     classifiers=[                              
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',

@@ -7,6 +7,7 @@ from time import time
 from numba import njit
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import FastICA
+from sklearn.decomposition import TruncatedSVD
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -18,6 +19,62 @@ logo = """
 /_____/\___/_/ /_/ /_/\___/\__/_/ /_/_/_/  \__, /  
                                           /____/   
 """
+
+def compute_bic(cost, n_u, n_cpg, n_ct, n_samples):
+    k = n_u * n_cpg + (n_ct + n_u - 1) * n_samples
+    bic = 2 * np.log(cost) + k * np.log(n_cpg)
+    return bic
+
+def compute_aic(cost, n_u, n_cpg, n_ct, n_samples):
+    k = n_u * n_cpg + (n_ct + n_u - 1) * n_samples
+    aic = 2 * (np.log(cost) + k)
+    return aic
+
+@njit
+def evaluate_best_ic(meth_f, ref, counts, init_option, ic, max_range=meth_f.shape[1]):
+    # Example parameters
+    n_u_values = range(0, max_range + 1)  
+    n_cpg, n_samples = meth_f.shape
+    n_ct = ref.shape[1]
+
+    best_ic = float('inf')
+    best_n_u = None
+    best_u_overall = None
+    best_alpha_overall = None
+
+    for n_u in tqdm.tqdm(n_u_values):
+        # Run the deconvolution for the current n_u
+        if(n_u >= 1):
+            u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = fs_irls)
+            u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2)
+            R = np.hstack((ref, u.reshape(-1, n_u)))
+
+        else:
+            alpha_tab = []
+            for k in range(n_samples):
+                alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
+            alpha = np.concatenate(alpha_tab, axis = 1)
+            R = ref
+
+        cost = cost_f_w(meth_f, R, alpha, counts)
+        # Compute the BIC
+        if(ic == "BIC"):
+            func = compute_bic
+        elif(ic == "AIC"):
+            func = compute_aic
+            
+        ic_result = func(cost, n_u, n_cpg, n_ct, n_samples)
+    
+        # Update the best BIC and best n_u
+        if ic_result < best_ic:
+            best_ic = ic_result
+            best_alpha_overall = alpha
+            best_n_u = n_u
+            if(n_u>=1):
+                best_u_overall = u
+        print(ic_result)
+        print(n_u)
+    return best_u_overall, best_alpha_overall, best_n_u
 
 
 def wls_deconv(ref, samples, weights):
@@ -52,7 +109,8 @@ def fs_irls(x, d_x, R_full, tol = 1e-14, n_iter = 10000):
 
 @njit
 def cost_f_w(y, R, alpha, d_x):
-    return np.linalg.norm(d_x * (y - R @ alpha))
+    return np.linalg.norm((y - R @ alpha))**2
+    # return np.linalg.norm(np.sqrt(d_x) * (y - R @ alpha))**2
 
 @njit
 def projection_simplex_sort_2d(v, z=1):
@@ -77,14 +135,24 @@ def projection_simplex_sort_2d(v, z=1):
 def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_irls):
     alpha_tab = []
     nb = meth_frequency.shape[1]
+
+    if(init_option != "uniform" and n_u > nb):
+        print("The number of unknowns is greater to the number of samples, we'll go with a uniform initialisation. ")
+        init_option = 'uniform'
+    
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
     elif(init_option == 'ICA'): ## Independent component analysis
         tt = FastICA(n_components = n_u)
         u = tt.fit_transform(meth_frequency)
-        u_ = (u - min(u)) 
-        u = u_ / max(u_)
-        
+        u_ = (u - np.min(u)) 
+        u = u_ / np.max(u_)
+    elif(init_option == 'SVD'):
+        tt = TruncatedSVD(n_components = n_u)
+        u = tt.fit_transform(meth_frequency)
+        u_ = (u - np.min(u)) 
+        u = u_ / np.max(u_)
+
     R = np.c_[R_trunc, u]
     
     for k in range(nb):
@@ -123,7 +191,7 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
     
 
 
-@njit
+# @njit
 def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=100000, n_iter2=50, tol=1e-3):
     nb_cpg, nb_celltypes = R_trunc.shape
     a1 = 1.0
@@ -147,8 +215,8 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
         cf_0 = cf
 
         u, u_, a1, l_w_ = update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x)
-
-        R = np.hstack((R_trunc, u.reshape(-1, 1)))
+        u = np.copy(u) 
+        R = np.hstack((R_trunc, u.reshape(-1, n_u)))
 
         l_h = (np.linalg.norm(R.T) * 
                np.linalg.norm(d_x.astype(np.float64)) * 
@@ -181,6 +249,7 @@ def main():
     parser.add_argument('--init', nargs="?", help='Initialisation option')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
+    parser.add_argument('--ic', nargs="?",default="AIC", help='Select number of unknown cell types by minimising an information criterion (default = AIC)')
 
     # Create a mutually exclusive group
     group = parser.add_mutually_exclusive_group()
@@ -227,8 +296,8 @@ def main():
         header = list(ref.columns)
         ref = ref.values
         if(args.fillna):
-            meth_f = meth_f.fillna(0)
-            ref = ref.fillna(0)
+            meth_f.fillna(0, inplace = True)
+            ref.fillna(0, inplace = True)
         if(not(args.noreadformat)):
             counts = pd.read_csv(args.counts).values
             if(args.fillna):
@@ -239,13 +308,22 @@ def main():
     
     # deconvolution
     time_start = time()
-    if(args.nbunknown[0] > 0 and meth_f.shape[1] > 1):
+    if(args.ic):
+        ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic)
+        unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
+        header += unknown_header
+        pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+    elif(args.nbunknown[0] > 0 and meth_f.shape[1] >= 1):
         u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls)
         ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
-    elif(args.nbunknown[0] == 0 and meth_f.shape[1] == 1):
+    elif(args.nbunknown[0] == 0 and meth_f.shape[1] >= 1):
+        alpha_tab = []
+        for k in range(nb):
+            alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], R))
+        proportions = np.concatenate(alpha_tab, axis = 1)
         proportions = fs_irls(counts * meth_f, counts, ref)
     else:
         exit(f'Invalid number of unknown value! : "{args.nbunknown}" ')
@@ -257,8 +335,10 @@ def main():
     proportions.index = header
     proportions.to_csv(outdir + '/celltypes_proportions.csv', index = True, header = args.methfreq)
     
-    f = open(os.path.join(outdir, 'time.log'), "w+")
-    f.write("Total execution time = " + str(time_tot) + " s")
+    f = open(os.path.join(outdir, 'log.log'), "w+")
+    f.write("Total execution time = " + str(time_tot) + " s" + '\n')
+    if(args.ic):
+        f.write("Number of unknowns that minimises " + args.ic + " : " + str(ic_n_u))
     f.close()
 
     print("All demethified! Results in " + outdir)

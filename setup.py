@@ -12,10 +12,10 @@ setup(
     license='MIT',                        
     packages=find_packages(),              
     install_requires=[                         
-        'numpy',
-        'pandas',
-        'scikit-learn',
-        'numba'
+        'numpy==1.26.4',
+        'pandas==2.2.2',
+        'scikit-learn==1.2.2',
+        'numba==0.59.0'
     ],
     entry_points={
         'console_scripts': [

@@ -23,7 +23,7 @@ setup(
             'demethify=demethify.demethify:main',
         ],
     },
-    python_requires='==3.11.8',                  
+    python_requires='>=3.6',                  
     classifiers=[                              
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',

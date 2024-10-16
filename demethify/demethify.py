@@ -200,6 +200,9 @@ def main():
     if not os.path.exists(outdir):
         print(f'Creating directory {outdir} to store results')
         os.mkdir(outdir)
+
+    if args.nbunknown is None:
+    	args.nbunknown = [0]
     
     # read bedmethyl files (modkit output)
     if(args.bedmethyl):

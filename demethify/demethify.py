@@ -242,7 +242,7 @@ def main():
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
-    elif(args.nbunknown[0] == 0 or meth_f.shape[1] == 1):
+    elif(args.nbunknown[0] == 0 and meth_f.shape[1] == 1):
         prop_tab = []
         for k in range(ref.shape[1] - 1):
             prop_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))

@@ -260,6 +260,8 @@ def main():
     f = open(os.path.join(outdir, 'time.log'), "w+")
     f.write("Total execution time = " + str(time_tot) + " s")
     f.close()
+
+    print("All demethified! Results in " + outdir)
     
     
     

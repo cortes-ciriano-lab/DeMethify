@@ -14,7 +14,8 @@ setup(
     install_requires=[                         
         'numpy',
         'pandas',
-        'scikit-learn'
+        'scikit-learn',
+        'numba'
     ],
     entry_points={
         'console_scripts': [

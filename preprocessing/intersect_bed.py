@@ -15,7 +15,7 @@ def get_column_number(bed_file):
         header = f.readline().strip().split()
     return len(header)
     
-def intersect_bed_files(bed_files):
+def intersect_bed_files(bed_files, output_folder):
     if len(bed_files) < 2:
         raise ValueError("At least two BED files are required for intersection.")
     
@@ -73,7 +73,7 @@ def intersect_bed_files(bed_files):
         if i >= 1:
             df_selected['percent_modified'] = (df_selected['count_modified'] / df_selected['valid_coverage']) * 100
             
-        df_selected.to_csv(output_file, sep='\t', header=True, index=False)
+        df_selected.to_csv(output_folder + "/" output_file, sep='\t', header=True, index=False)
         start_idx = end_idx
 
     print(f"Intersected files created: {[f'{bed_file}_intersect.bed' for bed_file in bed_files]}")
@@ -81,10 +81,15 @@ def intersect_bed_files(bed_files):
 def main():
     parser = argparse.ArgumentParser(description="Intersect multiple BED files using bedtools.")
     parser.add_argument('bed_files', nargs='+', help="List of BED files to intersect (at least two files required).")
+    parser.add_argument('output_folder', type=str, default=".", help='Path to output folder')
     
     args = parser.parse_args()
+
+    if not os.path.exists(output_folder):
+        print(f'Creating directory {output_folder} to store results')
+        os.mkdir(output_folder)
     
-    intersect_bed_files(args.bed_files)
+    intersect_bed_files(args.bed_files, args.output_folder)
 
 if __name__ == "__main__":
     main()

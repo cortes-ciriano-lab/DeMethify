@@ -81,15 +81,17 @@ def intersect_bed_files(bed_files, output_folder):
 def main():
     parser = argparse.ArgumentParser(description="Intersect multiple BED files using bedtools.")
     parser.add_argument('bed_files', nargs='+', help="List of BED files to intersect (at least two files required).")
-    parser.add_argument('output_folder', type=str, default=".", help='Path to output folder')
+    parser.add_argument('output_folder', nargs'?', type=str, default=".", help='Path to output folder')
     
     args = parser.parse_args()
+
+    output_folder = args.output_folder
 
     if not os.path.exists(output_folder):
         print(f'Creating directory {output_folder} to store results')
         os.mkdir(output_folder)
     
-    intersect_bed_files(args.bed_files, args.output_folder)
+    intersect_bed_files(args.bed_files, output_folder)
 
 if __name__ == "__main__":
     main()

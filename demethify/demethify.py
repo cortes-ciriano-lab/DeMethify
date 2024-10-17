@@ -3,8 +3,10 @@ import argparse
 import numpy as np
 import numpy.random as rd
 import pandas as pd
+import tqdm
 from time import time
 from numba import njit
+from sklearn.utils import resample
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import FastICA
 from sklearn.decomposition import TruncatedSVD
@@ -86,7 +88,7 @@ def wls_deconv(ref, samples, weights):
 
 
 
-def fs_irls(x, d_x, R_full, tol = 1e-14, n_iter = 10000):
+def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000):
     nb_celltypes = R_full.shape[1]
     alpha = np.reshape(rd.dirichlet(np.ones(nb_celltypes)), (nb_celltypes, 1))
     
@@ -142,7 +144,7 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_ir
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
     elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components = n_u)
+        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
@@ -310,6 +312,74 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
 
     return u, alpha
 
+
+def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples):
+    supervised = n_u == 0
+    a = 1 - confidence_level / 100
+    lower_percentile = 100 * (a / 2)  # Lower percentile for confidence interval
+    upper_percentile = 100 * (1 - (a / 2))  # Upper percentile for confidence interval
+
+    proportions_list = [[] for k in range(meth_f.shape[1])]
+    if not supervised:
+        ref_estimate_list = [[] for k in range(n_u)]
+
+    for i in tqdm.tqdm(range(n_bootstrap)):
+        meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref)
+
+        if(not supervised):
+            u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=fs_irls)
+            ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, n_iter1, n_iter2, tol)
+            for k in range(n_u):
+                ref_estimate_list[k].append(ref_estimate[:,k:k+1])
+        else:
+            alpha_tab = []
+            for k in range(meth_f.shape[1]):
+                alpha_tab.append(fs_irls(counts_resampled[:,k:k+1] * meth_f_resampled[:,k:k+1], counts_resampled[:,k:k+1], ref_resampled))
+            proportions = np.concatenate(alpha_tab, axis = 1)
+    
+        for j in range(meth_f.shape[1]):
+            proportions_list[j].append(proportions[:,j:j+1])
+
+
+    proportions_array = [np.array(proportions_list[k]) for k in range(meth_f.shape[1])]
+
+    lower_bounds_proportions = [np.percentile(proportions_array[k], lower_percentile, axis=0) for k in range(meth_f.shape[1])]
+    upper_bounds_proportions = [np.percentile(proportions_array[k], upper_percentile, axis=0) for k in range(meth_f.shape[1])]
+
+    unknown_header = []
+    if not supervised:
+        unknown_header = ["unknown_cell_" + str(i + 1) for i in range(n_u)]
+    cell_types = header + unknown_header
+    proportions_dict = {}
+    for i in range(meth_f.shape[1]): 
+        sample_column = []
+        for k in range(ref.shape[1] + n_u):  
+            sample_column.append((lower_bounds_proportions[i][k][0], upper_bounds_proportions[i][k][0]))
+        proportions_dict[f'Sample_{i+1}'] = sample_column
+
+    proportions_df = pd.DataFrame(proportions_dict, index=cell_types)
+    proportions_df.index.name = 'Cell Type'
+    proportions_df.to_csv(outdir + '/confidence_interval_celltypes_proportions.csv', index = True, header = samples)
+        
+    if(not supervised):
+        ref_estimate_array = [np.array(ref_estimate_list[k]) for k in range(n_u)]
+
+        lower_bounds_ref = [np.percentile(ref_estimate_array[k], lower_percentile, axis=0) for k in range(n_u)]
+        upper_bounds_ref = [np.percentile(ref_estimate_array[k], upper_percentile, axis=0) for k in range(n_u)]
+
+        ref_estimate_dict = {}
+        for k in range(n_u): 
+            unknown_column = []
+            for j in range(ref.shape[0]): 
+                unknown_column.append((lower_bounds_ref[k][j][0], upper_bounds_ref[k][j][0]))
+            ref_estimate_dict[unknown_header[k]] = unknown_column
+
+        ref_estimate_df = pd.DataFrame(ref_estimate_dict)
+
+        ref_estimate_df.to_csv(outdir + '/confidence_interval_methylation_estimate.csv', index = False)
+
+    
+
 def main():
 
     # Create the argument parser
@@ -325,6 +395,7 @@ def main():
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
     parser.add_argument('--ic', nargs="?", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
+    parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
 
     # Create a mutually exclusive group
     group = parser.add_mutually_exclusive_group()
@@ -395,6 +466,9 @@ def main():
     # deconvolution
     time_start = time()
 
+    if(args.confidence):
+        bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq)
+
     if(not args.ref):
         ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
@@ -419,7 +493,6 @@ def main():
         for k in range(meth_f.shape[1]):
             alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
         proportions = np.concatenate(alpha_tab, axis = 1)
-        proportions = fs_irls(counts * meth_f, counts, ref)
     else:
         exit(f'Invalid number of unknown value! : "{args.nbunknown}" ')
         
@@ -428,6 +501,7 @@ def main():
     # saving output files
     proportions = pd.DataFrame(proportions)
     proportions.index = header
+    proportions.index.name = "Cell types"
     proportions.to_csv(outdir + '/celltypes_proportions.csv', index = True, header = args.methfreq)
     
     f = open(os.path.join(outdir, 'log.log'), "w+")
@@ -438,6 +512,6 @@ def main():
 
     print("All demethified! Results in " + outdir)
 
-    
+
 if __name__ == "__main__":
 	main()

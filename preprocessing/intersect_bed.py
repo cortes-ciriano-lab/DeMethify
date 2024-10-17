@@ -1,9 +1,9 @@
-bedtools_path = "/opt/homebrew/bin/bedtools"
-
 import subprocess
 import pandas as pd
 import os
+import argparse
 
+bedtools_path = "/opt/homebrew/bin/bedtools"
 
 def get_column_header(bed_file):
     with open(bed_file, 'r') as f:
@@ -16,7 +16,6 @@ def get_column_number(bed_file):
     return len(header)
     
 def intersect_bed_files(bed_files):
-    
     if len(bed_files) < 2:
         raise ValueError("At least two BED files are required for intersection.")
     
@@ -51,19 +50,17 @@ def intersect_bed_files(bed_files):
 
         current_intersection = output_intersection
 
-
     df = pd.read_csv(current_intersection, sep='\t', header=None)
 
     if (df[2] - df[1] >= 2).any():
         cols_sum = {}
     
         for k in range(len(total_header)):
-            if(total_header[k] == "count_modified" or total_header[k] == "valid_coverage"):
+            if total_header[k] == "count_modified" or total_header[k] == "valid_coverage":
                 cols_sum[k] = "sum"
             else:
                 cols_sum[k] = "first"
 
-    
         df = df.groupby([0, 1, 2], as_index=False).agg(cols_sum)
 
     start_idx = 0
@@ -73,13 +70,21 @@ def intersect_bed_files(bed_files):
         df_selected.columns = total_header[start_idx:end_idx]
         output_file = f"bed{i + 1}_intersect.bed"
 
-        if(i >= 1):
+        if i >= 1:
             df_selected['percent_modified'] = (df_selected['count_modified'] / df_selected['valid_coverage']) * 100
             
         df_selected.to_csv(output_file, sep='\t', header=True, index=False)
         start_idx = end_idx
 
-    print(f"Intersected files created: {[f'{bed_files}_intersect.bed' for bed_file in bed_files]}")
+    print(f"Intersected files created: {[f'{bed_file}_intersect.bed' for bed_file in bed_files]}")
 
-bed_files = ["bed1.bed", "bed2.bed", "bed3.bed", "bed4.bed"] ## REPLACE BY BED FILE NAMES
-intersect_bed_files(bed_files)
+def main():
+    parser = argparse.ArgumentParser(description="Intersect multiple BED files using bedtools.")
+    parser.add_argument('bed_files', nargs='+', help="List of BED files to intersect (at least two files required).")
+    
+    args = parser.parse_args()
+    
+    intersect_bed_files(args.bed_files)
+
+if __name__ == "__main__":
+    main()

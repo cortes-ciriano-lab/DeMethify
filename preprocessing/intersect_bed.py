@@ -73,7 +73,7 @@ def intersect_bed_files(bed_files, output_folder):
         if i >= 1:
             df_selected['percent_modified'] = (df_selected['count_modified'] / df_selected['valid_coverage']) * 100
             
-        df_selected.to_csv(output_folder + "/" output_file, sep='\t', header=True, index=False)
+        df_selected.to_csv(output_folder + "/" + output_file, sep='\t', header=True, index=False)
         start_idx = end_idx
 
     print(f"Intersected files created: {[f'{bed_file}_intersect.bed' for bed_file in bed_files]}")

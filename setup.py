@@ -16,7 +16,10 @@ setup(
         'pandas==2.2.2',
         'scikit-learn==1.2.2',
         'numba==0.59.0',
-        'scipy==1.11.4'
+        'scipy==1.11.4',
+        'colorcet',
+        'seaborn',
+        'matplotlib'
     ],
     entry_points={
         'console_scripts': [

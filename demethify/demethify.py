@@ -30,9 +30,10 @@ def compute_aic(cost, n_u, n_cpg, n_ct, n_samples):
     aic = 2 * (np.log(cost) + k)
     return aic
 
-@njit
-def evaluate_best_ic(meth_f, ref, counts, init_option, ic, max_range=meth_f.shape[1]):
+# @njit
+def evaluate_best_ic(meth_f, ref, counts, init_option, ic):
     # Example parameters
+    max_range=meth_f.shape[1]
     n_u_values = range(0, max_range + 1)  
     n_cpg, n_samples = meth_f.shape
     n_ct = ref.shape[1]
@@ -42,7 +43,7 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, max_range=meth_f.shap
     best_u_overall = None
     best_alpha_overall = None
 
-    for n_u in tqdm.tqdm(n_u_values):
+    for n_u in n_u_values:
         # Run the deconvolution for the current n_u
         if(n_u >= 1):
             u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = fs_irls)
@@ -72,8 +73,6 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, max_range=meth_f.shap
             best_n_u = n_u
             if(n_u>=1):
                 best_u_overall = u
-        print(ic_result)
-        print(n_u)
     return best_u_overall, best_alpha_overall, best_n_u
 
 
@@ -137,7 +136,7 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_ir
     nb = meth_frequency.shape[1]
 
     if(init_option != "uniform" and n_u > nb):
-        print("The number of unknowns is greater to the number of samples, we'll go with a uniform initialisation. ")
+        print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
         init_option = 'uniform'
     
     if(init_option == 'uniform'): ## Random uniform
@@ -154,7 +153,8 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_ir
         u = u_ / np.max(u_)
 
     R = np.c_[R_trunc, u]
-    
+
+
     for k in range(nb):
         alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], R))
     alpha = np.concatenate(alpha_tab, axis = 1)
@@ -188,6 +188,82 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
         alpha = projection_simplex_sort_2d(alpha_temp + (R.T @ (d_x * (meth_frequency - R @ alpha_temp))) / l_h)
         l_h_ = l_h
     return alpha, alpha_, a2, l_h_
+
+def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=50, tol=1e-3):
+
+    if(init_option != "uniform" and n_u > meth_frequency.shape[1]):
+        print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
+        init_option = 'uniform'
+    
+    if(init_option == 'uniform'): ## Random uniform
+        u = rd.uniform(size = (meth_frequency.shape[0], n_u)) 
+    elif(init_option == 'ICA'): ## Independent component analysis
+        tt = FastICA(n_components = n_u)
+        u = tt.fit_transform(meth_frequency)
+        u_ = (u - np.min(u)) 
+        u = u_ / np.max(u_)
+    elif(init_option == 'SVD'):
+        tt = TruncatedSVD(n_components = n_u)
+        u = tt.fit_transform(meth_frequency)
+        u_ = (u - np.min(u)) 
+        u = u_ / np.max(u_)
+        
+    alpha = rd.uniform(size = (n_u, meth_frequency.shape[1])) 
+    alpha = alpha / alpha.sum()
+    
+    a1 = 1.0
+    a2 = 1.0
+    u_ = u.copy()
+    alpha_ = alpha.copy()
+    
+    l_w = (np.linalg.norm(alpha[-n_u:]) * 
+           np.linalg.norm(alpha[-n_u:].T) * 
+           np.linalg.norm(d_x.astype(np.float64)))
+    l_w_ = l_w
+    
+    l_h = (np.linalg.norm(u.T) * 
+           np.linalg.norm(d_x.astype(np.float64)) * 
+           np.linalg.norm(u))
+    l_h_ = l_h
+    
+    
+    cf = cost_f_w(meth_frequency, u, alpha, d_x)  
+    
+    for k in range(n_iter1):
+        cf_0 = cf
+
+        for i in range(n_iter2):
+            a0 = a1
+            a1 = (1 + np.sqrt(1 + 4 * a0 * a0)) / 2
+            beta_w = min((a0 - 1) / a1, 0.9999 *  np.sqrt(l_w_ / l_w))
+            u_temp = u + beta_w * (u - u_)
+            u_ = u
+            u = np.clip((u_temp + (d_x * ((meth_frequency -  u @ alpha)) @ alpha.T) / l_w), 0, 1)
+            l_w_ = l_w
+
+        l_h = (np.linalg.norm(u.T) * 
+               np.linalg.norm(d_x.astype(np.float64)) * 
+               np.linalg.norm(u))
+
+        for j in range(n_iter2):
+            a0 = a2
+            a2 = (1 + np.sqrt(1 + 4 * a0 * a0)) / 2
+            beta_h = min((a0 - 1) / a2, 0.9999 *  np.sqrt(l_h_ / l_h))
+            alpha_temp = alpha + beta_h * (alpha - alpha_)
+            alpha_ = alpha
+            alpha = projection_simplex_sort_2d(alpha_temp + (u.T @ (d_x * (meth_frequency - u @ alpha_temp))) / l_h)
+            l_h_ = l_h
+
+        l_w = (np.linalg.norm(alpha[-n_u:]) * 
+               np.linalg.norm(alpha[-n_u:].T) * 
+               np.linalg.norm(d_x.astype(np.float64)))
+
+        cf = cost_f_w(meth_frequency, u, alpha, d_x)
+
+        if abs(cf - cf_0) < tol:
+            break
+
+    return u, alpha
     
 
 
@@ -215,7 +291,6 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
         cf_0 = cf
 
         u, u_, a1, l_w_ = update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x)
-        u = np.copy(u) 
         R = np.hstack((R_trunc, u.reshape(-1, n_u)))
 
         l_h = (np.linalg.norm(R.T) * 
@@ -242,14 +317,14 @@ def main():
 
     # Add regular arguments
     parser.add_argument('--methfreq', nargs='+', type=str, required=True, help='Methylation frequency file path (values between 0 and 1)')
-    parser.add_argument('--ref', nargs='?', type=str, required=True, help='Methylation reference matrix file path')
+    parser.add_argument('--ref', nargs='?', type=str, help='Methylation reference matrix file path')
     parser.add_argument('--iterations', default=[10000, 20], nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default = 10000, 20)')
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
-    parser.add_argument('--init', nargs="?", help='Initialisation option')
+    parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
-    parser.add_argument('--ic', nargs="?",default="AIC", help='Select number of unknown cell types by minimising an information criterion (default = AIC)')
+    parser.add_argument('--ic', nargs="?", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
 
     # Create a mutually exclusive group
     group = parser.add_mutually_exclusive_group()
@@ -261,6 +336,14 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
+
+    if args.ic:
+        if args.nbunknown:
+            sys.stderr.write("Error: --ic cannot be used with --nbunknown.\n")
+            sys.exit(1)
+        if not args.ref:
+            sys.stderr.write("Error: --ic requires --ref to be specified.\n")
+            sys.exit(1)
     
     print(logo)
     
@@ -275,9 +358,10 @@ def main():
     
     # read bedmethyl files (modkit output)
     if(args.bedmethyl):
-        ref = pd.read_csv(args.ref, sep='\t').iloc[:, 3:]
-        header = list(ref.columns)
-        ref = ref.values
+        if(args.ref):
+            ref = pd.read_csv(args.ref, sep='\t').iloc[:, 3:]
+            header = list(ref.columns)
+            ref = ref.values
         list_meth_freq = []
         list_counts = []
         for bed in args.methfreq:
@@ -292,12 +376,15 @@ def main():
     # read csv files
     else:
         meth_f = pd.read_csv(args.methfreq).values
-        ref = pd.read_csv(args.ref)
-        header = list(ref.columns)
-        ref = ref.values
+        if(args.ref):
+            ref = pd.read_csv(args.ref)
+            header = list(ref.columns)
+            ref = ref.values
+
         if(args.fillna):
             meth_f.fillna(0, inplace = True)
-            ref.fillna(0, inplace = True)
+            if(args.ref):
+                ref.fillna(0, inplace = True)
         if(not(args.noreadformat)):
             counts = pd.read_csv(args.counts).values
             if(args.fillna):
@@ -305,24 +392,32 @@ def main():
         else:
             counts = np.ones_like(meth_f)
         
-    
     # deconvolution
     time_start = time()
-    if(args.ic):
+
+    if(not args.ref):
+        ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+        unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
+        header = unknown_header
+        pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+        
+    elif(args.ic):
         ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+        
     elif(args.nbunknown[0] > 0 and meth_f.shape[1] >= 1):
         u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls)
         ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+        
     elif(args.nbunknown[0] == 0 and meth_f.shape[1] >= 1):
         alpha_tab = []
-        for k in range(nb):
-            alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], R))
+        for k in range(meth_f.shape[1]):
+            alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
         proportions = np.concatenate(alpha_tab, axis = 1)
         proportions = fs_irls(counts * meth_f, counts, ref)
     else:
@@ -342,7 +437,7 @@ def main():
     f.close()
 
     print("All demethified! Results in " + outdir)
-    
+
     
 if __name__ == "__main__":
 	main()

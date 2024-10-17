@@ -19,10 +19,10 @@ if __name__ == "__main__":
     
     parser.add_argument('bedfile', type=str, help='Path to the input BED file')
     parser.add_argument('n', type=int, help='Number of top rows to select')
-    parser.add_argument('output_folder', type=str, default=".", help='Path to output folder')
+    parser.add_argument('out', nargs='?', type=str, default=".", help='Path to output folder')
 
     args = parser.parse_args()
 
     
     
-    feature_select_var(args.bedfile, args.n, args.output_folder)
+    feature_select_var(args.bedfile, args.n, args.out)

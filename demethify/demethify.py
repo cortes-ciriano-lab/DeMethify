@@ -10,6 +10,9 @@ from sklearn.utils import resample
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import FastICA
 from sklearn.decomposition import TruncatedSVD
+import colorcet as cc  
+import seaborn as sns
+import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -340,6 +343,8 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
         for j in range(meth_f.shape[1]):
             proportions_list[j].append(proportions[:,j:j+1])
 
+    
+    results = []
 
     proportions_array = [np.array(proportions_list[k]) for k in range(meth_f.shape[1])]
 
@@ -358,8 +363,11 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
         proportions_dict[f'Sample_{i+1}'] = sample_column
 
     proportions_df = pd.DataFrame(proportions_dict, index=cell_types)
+    proportions_df.columns = samples
     proportions_df.index.name = 'Cell Type'
-    proportions_df.to_csv(outdir + '/confidence_interval_celltypes_proportions.csv', index = True, header = samples)
+    proportions_df.to_csv(outdir + '/confidence_interval_celltypes_proportions.csv', index = True)
+
+    results.append(proportions_df)
         
     if(not supervised):
         ref_estimate_array = [np.array(ref_estimate_list[k]) for k in range(n_u)]
@@ -377,7 +385,69 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
         ref_estimate_df = pd.DataFrame(ref_estimate_dict)
 
         ref_estimate_df.to_csv(outdir + '/confidence_interval_methylation_estimate.csv', index = False)
+        results.append(ref_estimate_df)
 
+
+    return results
+
+
+def plot_proportions(df, ci_df, outdir):
+
+    unique_ct = list(df.index)
+
+    colors = sns.color_palette(cc.glasbey, len(unique_ct))
+
+    color_mapping = {barcode: color for barcode, color in zip(unique_ct, colors)}
+    clrs = [color_mapping[barcode] for barcode in unique_ct]
+    plt.figure(figsize=(12, 8))
+    ax = df.T.plot(kind='bar', stacked=True, figsize=(10, 6), color=clrs)
+
+    plt.title('Proportion of Cell Types in Each Sample')
+    plt.ylabel('Proportion')
+    plt.xlabel('Samples')
+
+    plt.legend(title='Cell Types', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    outdir_plots = outdir + '/plots'
+    if not os.path.exists(outdir_plots):
+        os.mkdir(outdir_plots)
+    plt.savefig(outdir_plots + '/proportions_stackedbar.png', dpi=300, bbox_inches='tight')
+
+    sns.set(style="whitegrid")
+
+    for sample in df.columns: 
+        plt.figure(figsize=(12, 8))
+        if(not ci_df.empty):
+            ax = sns.barplot(x=df.index, y=df[sample], palette=clrs, ci=None)
+
+            ci_values = ci_df[sample].apply(lambda x: (x[0], x[1])) 
+
+            lower_bounds = np.array([ci[0] for ci in ci_values])
+            upper_bounds = np.array([ci[1] for ci in ci_values])
+
+            lower_error = abs(df[sample].values - lower_bounds)  
+            upper_error = abs(upper_bounds - df[sample].values)  
+
+            ax.errorbar(x=np.arange(len(df.index)), 
+                        y=df[sample], 
+                        yerr=[lower_error, upper_error],  
+                        fmt='none',  
+                        ecolor='black',  
+                        capsize=5,  
+                        capthick=2)  
+        else:
+            sns.barplot(x=df.index, y=df[sample], palette=clrs)
+
+        plt.xlabel('Cell Types')
+        plt.ylabel('Proportion')
+        plt.title(f'Proportion of Cell Types in {sample}')
+    
+        plt.xticks(rotation=90)
+    
+        plt.savefig(outdir_plots + '/proportions_bar_' + sample + '.png', dpi=300, bbox_inches='tight')
+
+    print("Plots generated in " + outdir)
+    
     
 
 def main():
@@ -396,6 +466,7 @@ def main():
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
     parser.add_argument('--ic', nargs="?", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
+    parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
 
     # Create a mutually exclusive group
     group = parser.add_mutually_exclusive_group()
@@ -467,7 +538,7 @@ def main():
     time_start = time()
 
     if(args.confidence):
-        bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq)
+        bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq)
 
     if(not args.ref):
         ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
@@ -501,17 +572,23 @@ def main():
     # saving output files
     proportions = pd.DataFrame(proportions)
     proportions.index = header
+    proportions.columns = args.methfreq
     proportions.index.name = "Cell types"
-    proportions.to_csv(outdir + '/celltypes_proportions.csv', index = True, header = args.methfreq)
-    
+    proportions.to_csv(outdir + '/celltypes_proportions.csv', index = True)
+
+    print("All demethified! Results in " + outdir)
     f = open(os.path.join(outdir, 'log.log'), "w+")
     f.write("Total execution time = " + str(time_tot) + " s" + '\n')
     if(args.ic):
         f.write("Number of unknowns that minimises " + args.ic + " : " + str(ic_n_u))
     f.close()
-
-    print("All demethified! Results in " + outdir)
-
+    
+    if(args.plot):
+        ci_df = pd.DataFrame()
+        if(args.confidence):
+            ci_df = bt_results[0]
+        plot_proportions(proportions, ci_df, outdir)
+        
 
 if __name__ == "__main__":
 	main()

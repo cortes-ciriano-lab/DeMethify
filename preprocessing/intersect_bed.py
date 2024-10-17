@@ -85,7 +85,7 @@ def main():
     
     args = parser.parse_args()
 
-    output_folder = os.path.join(os.getcwd(), args.output_folder)
+    output_folder = os.path.join(os.getcwd(), args.out)
     if not os.path.exists(output_folder):
         print(f'Creating directory {output_folder} to store results')
         os.mkdir(output_folder)

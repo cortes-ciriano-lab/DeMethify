@@ -443,7 +443,7 @@ def plot_proportions(df, ci_df, outdir):
     
         plt.xticks(rotation=90)
     
-        plt.savefig(outdir_plots + '/proportions_bar_' + sample[:-4].split[-1] + '.png', dpi=300, bbox_inches='tight')
+        plt.savefig(outdir_plots + '/proportions_bar_' + sample[:-4] + '.png', dpi=300, bbox_inches='tight')
 
     print("Plots generated in " + outdir)
     
@@ -513,6 +513,8 @@ def main():
             list_counts.append(temp["valid_coverage"].values)
         meth_f = np.column_stack(list_meth_freq)
         counts = np.column_stack(list_counts)
+	    
+    args.methfreq = [bed.split("/")[-1] for bed in args.methfreq]
 
     # read csv files
     else:

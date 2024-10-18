@@ -19,7 +19,8 @@ setup(
         'scipy==1.11.4',
         'colorcet',
         'seaborn',
-        'matplotlib'
+        'matplotlib',
+        'tqdm'
     ],
     entry_points={
         'console_scripts': [

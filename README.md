@@ -3,6 +3,32 @@
                                        
 DeMethify is a partial-reference based methylation deconvolution algorithm that uses a weighted constrained version of an iteratively optimized negative matrix factorization algorithm. 
 
+## Installing DeMethify
+
+We recommend setting up a fresh conda environment with a Python version >= 3.6 :
+```
+conda create --name demethify python=3.10.15
+```
+
+Then one can either use:
+```
+pip install git+https://github.com/cortes-ciriano-lab/DeMethify
+```
+
+Or:
+```
+git clone https://github.com/cortes-ciriano-lab/DeMethify
+cd DeMethify
+pip install .
+```
+
+Verify that the installation went well with:
+
+```
+demethify -h
+```
+
+
 ## Run DeMethify
 
 After installing, you can run DeMethify with the following arguments in the case of read format data input:

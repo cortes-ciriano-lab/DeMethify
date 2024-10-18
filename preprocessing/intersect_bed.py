@@ -68,7 +68,7 @@ def intersect_bed_files(bed_files, output_folder):
         end_idx = start_idx + cols_bed[i]
         df_selected = df.iloc[:, start_idx:end_idx]
         df_selected.columns = total_header[start_idx:end_idx]
-        output_file = f"bed{i + 1}_intersect.bed"
+        output_file = bed_file[:-4] + "_intersect.bed"
 
         if i >= 1:
             df_selected['percent_modified'] = (df_selected['count_modified'] / df_selected['valid_coverage']) * 100
@@ -76,7 +76,7 @@ def intersect_bed_files(bed_files, output_folder):
         df_selected.to_csv(output_folder + "/" + output_file, sep='\t', header=True, index=False)
         start_idx = end_idx
 
-    print(f"Intersected files created: {[f'{bed_file}_intersect.bed' for bed_file in bed_files]}")
+    print("Intersected files created: ", [bed_file[:-4] + "_intersect.bed" for bed_file in bed_files])
 
 def main():
     parser = argparse.ArgumentParser(description="Intersect multiple BED files using bedtools.")

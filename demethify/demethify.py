@@ -534,7 +534,9 @@ def main():
         else:
             counts = np.ones_like(meth_f)
 
+    print(args.methfreq)
     args.methfreq = [bla.split("/")[-1] for bla in args.methfreq]
+    print(args.methfreq)
         
     # deconvolution
     time_start = time()

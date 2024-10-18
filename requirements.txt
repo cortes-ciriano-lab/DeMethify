@@ -6,3 +6,4 @@ numba==0.59.0
 colorcet
 seaborn
 matplotlib
+tqdm

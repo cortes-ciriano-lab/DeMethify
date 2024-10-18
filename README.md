@@ -3,6 +3,24 @@
                                        
 DeMethify is a partial-reference based methylation deconvolution algorithm that uses a weighted constrained version of an iteratively optimized negative matrix factorization algorithm. 
 
+## Flags and arguments
+| Option              | Description                                                                                           |
+|---------------------|-------------------------------------------------------------------------------------------------------|
+| `methfreq`          | Methylation frequency file path (values between 0 and 1)                                               |
+| `ref`               | Methylation reference matrix file path                                                                |
+| `outdir`            | Output directory (can exist but must be empty)                                                        |
+| `nbunknown`         | Number of unknown cell types to estimate                                                              |
+| `iterations`        | Numbers of iterations for outer and inner loops (default = 10000, 20)                                 |
+| `termination`       | Termination condition for cost function (default = 1e-2)                                              |
+| `init`              | Initialisation option (default = random uniform)                                                      |
+| `fillna`            | Replace every NA by 0 in the given data                                                               |
+| `ic`                | Select number of unknown cell types by minimising an information criterion (AIC or BIC)               |
+| `confidence`        | Outputs bootstrap confidence intervals, takes confidence level and bootstrap iteration numbers as input |
+| `plot`              | Plot cell type proportions estimates for each sample, eventually with confidence intervals.            |
+| `bedmethyl`         | Flag to indicate that the input will be bedmethyl files, modkit style                                  |
+| `counts`            | Read counts file path                                                                                 |
+| `noreadformat`      | Flag to use when the data isn't using the read format (e.g., Illumina epic arrays)                    |
+
 ## Installing DeMethify
 
 We recommend setting up a fresh conda environment with a Python version >= 3.6 :
@@ -31,29 +49,37 @@ demethify -h
 
 ## Run DeMethify
 
-After installing, you can run DeMethify with the following arguments in the case of read format data input:
+After installing, you can finally run DeMethify. 
+
+The typical pipeline for bedmethyl files (like the ones outputted by modkit) is:
+- Preprocessing
+  - Potentially feature selection, doeable from commandline with preprocessing/feature_selection.py (see preprocessing/preprocessing.ipynb)
+  - Intersection of the reference and the samples so that the CpG sites are consistent across files, doeable from commandline with preprocessing/intersect_bed.py (see preprocessing/preprocessing.ipynb)
 ```
-python demethify --methfreq <methfreq_csv> --counts <counts_csv> --ref <ref_csv> --outdir <outdir> --nbunknown <nb_unknown>
+python feature_selection.py bed1.bed 100000
+python intersect_bed.py bed1_select_ref.bed bed2.bed bed3.bed bed4.bed 
 ```
-in the case of no read format data input :
+
+If you've got a number of samples greater or equal than 2, you can use the partial-reference based algorithm to jointly estimate the unknown cell type portion methylation profile and the proportions of all known and unknown cell types, otherwise you can use the reference based algorithm (if you don't specify --nbunknown) and hope that the unknown portion of the mixture isn't too high. 
 
 ```
-python demethify --methfreq <methfreq_csv> --noreadformat --ref <ref_csv> --outdir <outdir> --nbunknown <nb_unknown>
+!demethify \
+    --ref output_gen/ref_matrix.bed \
+    --methfreq output_gen/sample* \
+    --nbunknown 1 \
+    --init SVD \
+    --confidence 95 2500 \
+    --outdir ci \
+    --bedmethyl \
+    --plot
 ```
 
-### Mandatory Arguments
-Argument|Description
----|---
-methfreq|Methylation frequency CSV file (values between 0 and 1)
-ref|Reference methylation matrix CSV file
-outdir|Output directory (can exist but must be empty)
-nbunknown|Number of unknown cell types to estimate 
+With the --confidence flag (arguments are confidence level in percentage and number of bootstrap iterations), you can obtain confidence intervals for the estimates. 
 
-### Optional Arguments
-Argument|Description
----|---
-counts|Read counts CSV file
-noreadformat|Flag to use when the data isn't using the read format (like Illumina epic arrays)
-iterations|Numbers of iterations for outer and inner loops (default = 50000, 50)
-termination|Termination condition for cost function (default = 1e-2)
-fillna|Replace every NA by 0 in the given data
+
+
+
+
+
+![proportions_stackedbar](https://github.com/user-attachments/assets/a3d0e144-d222-4595-8fe0-8548c9f1c992)
+![proportions_bar_sample1](https://github.com/user-attachments/assets/f1e5f9dd-21c2-4a0a-b806-fa00481d4972)

@@ -55,6 +55,7 @@ The typical pipeline for bedmethyl files (like the ones outputted by modkit) is:
 - Preprocessing
   - Potentially feature selection, doeable from commandline with preprocessing/feature_selection.py (see preprocessing/preprocessing.ipynb)
   - Intersection of the reference and the samples so that the CpG sites are consistent across files, doeable from commandline with preprocessing/intersect_bed.py (see preprocessing/preprocessing.ipynb)
+- Run DeMethify depending on your use case
 ```
 python feature_selection.py bed1.bed 100000
 python intersect_bed.py bed1_select_ref.bed bed2.bed bed3.bed bed4.bed 

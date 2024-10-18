@@ -26,6 +26,7 @@ DeMethify is a partial-reference based methylation deconvolution algorithm that 
 We recommend setting up a fresh conda environment with a Python version >= 3.6 :
 ```
 conda create --name demethify python=3.10.15
+conda activate demethify
 ```
 
 Then one can either use:

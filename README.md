@@ -65,7 +65,7 @@ python intersect_bed.py bed1_select_ref.bed bed2.bed bed3.bed bed4.bed
 If you've got a number of samples greater or equal than 2, you can use the partial-reference based algorithm to jointly estimate the unknown cell type portion methylation profile and the proportions of all known and unknown cell types, otherwise you can use the reference based algorithm (if you don't specify --nbunknown) and hope that the unknown portion of the mixture isn't too high. 
 
 ```
-!demethify \
+demethify \
     --ref output_gen/ref_matrix.bed \
     --methfreq output_gen/sample* \
     --nbunknown 1 \

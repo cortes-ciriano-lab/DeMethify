@@ -212,9 +212,8 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
-        
-    alpha = rd.uniform(size = (n_u, meth_frequency.shape[1])) 
-    alpha = alpha / alpha.sum()
+	    
+    alpha = rd.dirichlet(np.ones(n_u)), (n_u, meth_frequency.shape[1]))
     
     a1 = 1.0
     a2 = 1.0

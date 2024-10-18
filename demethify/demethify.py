@@ -443,7 +443,7 @@ def plot_proportions(df, ci_df, outdir):
     
         plt.xticks(rotation=90)
     
-        plt.savefig(outdir_plots + '/proportions_bar_' + sample + '.png', dpi=300, bbox_inches='tight')
+        plt.savefig(outdir_plots + '/proportions_bar_' + sample[:-4] + '.png', dpi=300, bbox_inches='tight')
 
     print("Plots generated in " + outdir)
     

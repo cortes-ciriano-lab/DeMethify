@@ -514,7 +514,6 @@ def main():
         meth_f = np.column_stack(list_meth_freq)
         counts = np.column_stack(list_counts)
 	    
-    args.methfreq = [bed.split("/")[-1] for bed in args.methfreq]
 
     # read csv files
     else:
@@ -534,6 +533,8 @@ def main():
                 counts.fillna(0, inplace = True)
         else:
             counts = np.ones_like(meth_f)
+
+    args.methfreq = [bla.split("/")[-1] for bla in args.methfreq]
         
     # deconvolution
     time_start = time()

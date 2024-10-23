@@ -127,8 +127,42 @@ demethify \
     --plot 
 ```
 
+### Confidence intervals
+
 With the --confidence flag (arguments are confidence level in percentage and number of bootstrap iterations), you can obtain confidence intervals for the estimates and the --plot flag generates plots so that you can visualise the proportions estimates like this:
 
 
 ![proportions_stackedbar](https://github.com/user-attachments/assets/a3d0e144-d222-4595-8fe0-8548c9f1c992)
 ![proportions_bar_sample1](https://github.com/user-attachments/assets/f1e5f9dd-21c2-4a0a-b806-fa00481d4972)
+
+## Identifiability of the estimation
+$n_s$ : number of samples
+$n_u$ : number of unknown cell types to estimate
+$n_c$ : number of known cell types
+$n_{cpg}$ : number of CpG sites
+
+In the partial-reference based case without purity, the estimation problem is identifiable when:
+
+$n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 1}$
+
+When $n_u = 1$, we have:
+
+$n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c}$
+
+The ratio on the right is in $(1,2]$ for most real-life situations, which means that for the estimation problem to be identifiable in the partial-reference based case without purity with a single unknown cell type we need at least 2 samples. 
+
+In the partial-reference based case with purity, the estimation problem is identifiable when:
+
+$n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 2}$
+
+When $n_u = 1$, we have:
+
+$n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c + 1}$
+
+And with $n_c = 1$, we have:
+
+$n_s \geq 1$
+
+Which means that the purity information makes the one sample estimation problem identifiable in the partial-reference based case with a single unknown cell type and a single known cell type. 
+
+

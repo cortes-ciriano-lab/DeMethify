@@ -76,6 +76,20 @@ demethify \
     --plot
 ```
 
+You can only specify (in percent) the sample purity if you have it to make the estimation better.  It also makes the optimisation problem identifiable for the one sample, one known cell type case. 
+
+```
+!demethify \
+    --ref output_gen/ref_matrix.bed \
+    --methfreq output_gen/sample{1..10}.bed \
+    --nbunknown 1 \
+    --init SVD \
+    --purity 60 80 90 20 50 90 100 30 50 10 \
+    --outdir purity \
+    --bedmethyl \
+    --plot 
+```
+
 With the --confidence flag (arguments are confidence level in percentage and number of bootstrap iterations), you can obtain confidence intervals for the estimates and the --plot flag generates plots so that you can visualise the proportions estimates like this:
 
 

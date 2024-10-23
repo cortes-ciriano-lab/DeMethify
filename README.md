@@ -131,6 +131,18 @@ demethify \
 
 With the --confidence flag (arguments are confidence level in percentage and number of bootstrap iterations), you can obtain confidence intervals for the estimates and the --plot flag generates plots so that you can visualise the proportions estimates like this:
 
+```
+!demethify \
+    --ref output_gen/ref_matrix.bed \
+    --methfreq output_gen/sample{1..10}.bed \
+    --nbunknown 1 \
+    --init SVD \
+    --confidence 95 2500 \
+    --outdir ci \
+    --bedmethyl \
+    --plot
+```
+
 
 ![proportions_stackedbar](https://github.com/user-attachments/assets/a3d0e144-d222-4595-8fe0-8548c9f1c992)
 ![proportions_bar_sample1](https://github.com/user-attachments/assets/f1e5f9dd-21c2-4a0a-b806-fa00481d4972)

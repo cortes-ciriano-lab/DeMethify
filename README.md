@@ -79,7 +79,7 @@ demethify \
 You can only specify (in percent) the sample purity if you have it to make the estimation better.  It also makes the optimisation problem identifiable for the one sample, one known cell type case. 
 
 ```
-!demethify \
+demethify \
     --ref output_gen/ref_matrix.bed \
     --methfreq output_gen/sample{1..10}.bed \
     --nbunknown 1 \

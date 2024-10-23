@@ -311,8 +311,6 @@ def frank_wolfe_nmf(W1, W2, meth_frequency, alpha1_init, alpha2_init, purity, ma
 def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_iter1=100, n_iter2=500, tol=1e-3):
     nb_cpg, nb_celltypes = R_trunc.shape
     a1 = 1.0
-    a2 = 1.0
-    a3 = 1.0
     u_ = u.copy()
     alpha1, alpha2 = alpha[:-n_u], alpha[-n_u:]
     alpha1_ = alpha1.copy()

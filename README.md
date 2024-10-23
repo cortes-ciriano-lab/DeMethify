@@ -11,7 +11,7 @@ DeMethify is a partial-reference based methylation deconvolution algorithm that 
 | `outdir`            | Output directory (can exist but must be empty)                                                        |
 | `nbunknown`         | Number of unknown cell types to estimate                                                              |
 | `iterations`        | Numbers of iterations for outer and inner loops (default without purity = 10000, 20, with purity= 100, 500)                                 |
-| `purity`            | The purity of the sample in percent [0,100], if known                                                 |
+| `purity`            | The purities of the samples in percent [0,100], if known                                                 |
 | `termination`       | Termination condition for cost function (default = 1e-2)                                              |
 | `init`              | Initialisation option (default = random uniform)                                                      |
 | `fillna`            | Replace every NA by 0 in the given data                                                               |

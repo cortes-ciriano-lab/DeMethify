@@ -62,6 +62,22 @@ python feature_selection.py bed1.bed 100000
 python intersect_bed.py bed1_select_ref.bed bed2.bed bed3.bed bed4.bed 
 ```
 
+Here is a flowchart to run you through the different use cases for DeMethify. 
+
+![flowchart-fun](https://github.com/user-attachments/assets/eb174261-8852-4436-aaf7-13511f0fbdfe)
+
+If you've got no methylation reference matrix, you can still use DeMethify in a totally unsupervised fashion:
+
+```
+!demethify \
+    --methfreq output_gen/sample{1..10}.bed \
+    --nbunknown 4 \
+    --init SVD \
+    --outdir unsupervised \
+    --bedmethyl \
+    --plot
+```
+
 If you've got a number of samples greater or equal than 2, you can use the partial-reference based algorithm to jointly estimate the unknown cell type portion methylation profile and the proportions of all known and unknown cell types, otherwise you can use the reference based algorithm (if you don't specify --nbunknown) and hope that the unknown portion of the mixture isn't too high. 
 
 ```

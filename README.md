@@ -66,10 +66,13 @@ Here is a flowchart to run you through the different use cases for DeMethify.
 
 ![flowchart-fun](https://github.com/user-attachments/assets/eb174261-8852-4436-aaf7-13511f0fbdfe)
 
-If you've got no methylation reference matrix, you can still use DeMethify in a totally unsupervised fashion:
+
+### Unsupervised case
+
+If you've got no methylation reference matrix, you can still use DeMethify in a totally unsupervised fashion. Just leave out the --ref flag:
 
 ```
-!demethify \
+demethify \
     --methfreq output_gen/sample{1..10}.bed \
     --nbunknown 4 \
     --init SVD \
@@ -78,12 +81,28 @@ If you've got no methylation reference matrix, you can still use DeMethify in a 
     --plot
 ```
 
+### Reference based case
+
+If you want to perform fully reference-based methylation deconvolution, just leave out the --nbunknown flag:
+
+```
+demethify \
+    --ref output_gen/ref_matrix.bed \
+    --methfreq \
+    output_gen/sample{1..10}.bed \
+    --bedmethyl \
+    --outdir output_ref_based \
+    --plot
+```
+
+### Partial-reference based case
+
 If you've got a number of samples greater or equal than 2, you can use the partial-reference based algorithm to jointly estimate the unknown cell type portion methylation profile and the proportions of all known and unknown cell types, otherwise you can use the reference based algorithm (if you don't specify --nbunknown) and hope that the unknown portion of the mixture isn't too high. 
 
 ```
 demethify \
     --ref output_gen/ref_matrix.bed \
-    --methfreq output_gen/sample* \
+    --methfreq output_gen/sample{1..10}.bed \
     --nbunknown 1 \
     --init SVD \
     --confidence 95 2500 \
@@ -92,7 +111,9 @@ demethify \
     --plot
 ```
 
-You can only specify (in percent) the sample purity if you have it to make the estimation better.  It also makes the optimisation problem identifiable for the one sample, one known cell type case. 
+### Partial-reference based case with purity
+
+You can specify (in percent) the sample purity if you have it to make the estimation better.  It also makes the optimisation problem identifiable for the one sample, one known cell type case. 
 
 ```
 demethify \

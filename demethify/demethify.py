@@ -4,10 +4,10 @@ import argparse
 import numpy as np
 import pandas as pd
 from time import time
-from deconvolution import *
-from bootstrap import *
-from ic import *
-from plotting import *
+from .deconvolution import *
+from .bootstrap import *
+from .ic import *
+from .plotting import *
 import warnings
 warnings.filterwarnings("ignore")
 

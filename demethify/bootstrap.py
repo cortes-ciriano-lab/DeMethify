@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import tqdm
 from sklearn.utils import resample
-from deconvolution import *
+from .deconvolution import *
 
 
 def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples, purity):

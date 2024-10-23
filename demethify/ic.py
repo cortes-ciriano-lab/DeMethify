@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from deconvolution import *
+from .deconvolution import *
 
 
 def compute_bic(cost, n_u, n_cpg, n_ct, n_samples):

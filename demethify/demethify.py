@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import numpy as np
 import numpy.random as rd
@@ -113,8 +114,8 @@ def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000):
 
 @njit
 def cost_f_w(y, R, alpha, d_x):
-    return np.linalg.norm((y - R @ alpha))**2
-    # return np.linalg.norm(np.sqrt(d_x) * (y - R @ alpha))**2
+    # return np.linalg.norm((y - R @ alpha))**2
+    return np.linalg.norm(np.sqrt(d_x) * (y - R @ alpha))**2
 
 @njit
 def projection_simplex_sort_2d(v, z=1):
@@ -193,6 +194,8 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
         alpha = projection_simplex_sort_2d(alpha_temp + (R.T @ (d_x * (meth_frequency - R @ alpha_temp))) / l_h)
         l_h_ = l_h
     return alpha, alpha_, a2, l_h_
+
+
 
 def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=50, tol=1e-3):
 
@@ -315,11 +318,15 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
     return u, alpha
 
 
-def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples):
+def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples, purity):
     supervised = n_u == 0
     a = 1 - confidence_level / 100
     lower_percentile = 100 * (a / 2)  # Lower percentile for confidence interval
     upper_percentile = 100 * (1 - (a / 2))  # Upper percentile for confidence interval
+    yes_purity= False
+    if purity:
+        yes_purity = True
+        purity = np.array(purity)/100.0
 
     proportions_list = [[] for k in range(meth_f.shape[1])]
     if not supervised:
@@ -329,8 +336,13 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
         meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref)
 
         if(not supervised):
-            u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=fs_irls)
-            ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, n_iter1, n_iter2, tol)
+            if yes_purity:
+                
+                u, R, alpha = init_BSSMF_md_p(init_option, meth_f, counts, ref, n_u, purity, rb_alg = fs_irls)
+                ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, purity, n_iter1, n_iter2, tol)
+            else:
+                u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=fs_irls)
+                ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, n_iter1, n_iter2, tol)
             for k in range(n_u):
                 ref_estimate_list[k].append(ref_estimate[:,k:k+1])
         else:
@@ -446,6 +458,110 @@ def plot_proportions(df, ci_df, outdir):
         plt.savefig(outdir_plots + '/proportions_bar_' + sample[:-4] + '.png', dpi=300, bbox_inches='tight')
 
     print("Plots generated in " + outdir_plots)
+
+def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = fs_irls):
+    alpha_tab = []
+    nb = meth_frequency.shape[1]
+
+    if(init_option != "uniform" and n_u > nb):
+        print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
+        init_option = 'uniform'
+    
+    if(init_option == 'uniform'): ## Random uniform
+        u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
+    elif(init_option == 'ICA'): ## Independent component analysis
+        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200)
+        u = tt.fit_transform(meth_frequency)
+        u_ = (u - np.min(u)) 
+        u = u_ / np.max(u_)
+    elif(init_option == 'SVD'):
+        tt = TruncatedSVD(n_components = n_u)
+        u = tt.fit_transform(meth_frequency)
+        u_ = (u - np.min(u)) 
+        u = u_ / np.max(u_)
+
+    R = np.c_[R_trunc, u]
+
+    alpha1 = purity * rd.dirichlet(np.ones(R_trunc.shape[1]), meth_frequency.shape[1]).T
+    alpha2 =  (1 - purity) * rd.dirichlet(np.ones(n_u), meth_frequency.shape[1]).T
+    alpha = np.vstack((alpha1, alpha2))
+        
+    return u, R, alpha
+@njit
+def argmin_vertex_in_simplex(grad_alpha, purity):
+    i_min = np.argmin(grad_alpha)
+    
+    s_alpha = np.zeros_like(grad_alpha)
+    
+    s_alpha[i_min] = purity
+    
+    return s_alpha
+@njit
+def frank_wolfe_nmf(W1, W2, meth_frequency, alpha1_init, alpha2_init, purity, max_iter, d_x):
+    num_columns = alpha1_init.shape[1]  
+    alpha1 = alpha1_init.copy()
+    alpha2 = alpha2_init.copy()
+
+    for k in range(max_iter):
+        grad_alpha1 = - W1.T @  (d_x * (meth_frequency - W1 @ alpha1 - W2 @ alpha2))
+        grad_alpha2 = - W2.T @ (d_x * (meth_frequency - W1 @ alpha1 - W2 @ alpha2))
+        
+        # grad_alpha1 = -2 * W1.T @ (meth_frequency - W1 @ alpha1 - W2 @ alpha2)
+        # grad_alpha2 = -2 * W2.T @ (meth_frequency - W1 @ alpha1 - W2 @ alpha2)
+
+        s_alpha1 = np.zeros_like(alpha1)
+        s_alpha2 = np.zeros_like(alpha2)
+
+        for col in range(num_columns):
+            s_alpha1[:, col] = argmin_vertex_in_simplex(grad_alpha1[:, col], purity[col])
+            s_alpha2[:, col] = argmin_vertex_in_simplex(grad_alpha2[:, col], 1 - purity[col])
+
+        gamma_k = 2 / (k + 2) 
+
+        alpha1 = (1 - gamma_k) * alpha1 + gamma_k * s_alpha1
+        alpha2 = (1 - gamma_k) * alpha2 + gamma_k * s_alpha2
+
+
+    return alpha1, alpha2
+
+@njit
+def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_iter1=100, n_iter2=500, tol=1e-3):
+    nb_cpg, nb_celltypes = R_trunc.shape
+    a1 = 1.0
+    a2 = 1.0
+    a3 = 1.0
+    u_ = u.copy()
+    alpha1, alpha2 = alpha[:-n_u], alpha[-n_u:]
+    alpha1_ = alpha1.copy()
+    alpha2_ = alpha2.copy()
+    
+    l_w = (np.linalg.norm(alpha[-n_u:]) * 
+           np.linalg.norm(alpha[-n_u:].T) * 
+           np.linalg.norm(d_x.astype(np.float64)))
+    l_w_ = l_w
+    
+    cf = cost_f_w(meth_frequency, R, alpha, d_x)  
+    
+    for k in range(n_iter1):
+        cf_0 = cf
+        u, u_, a1, l_w_ = update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x)
+        R = np.hstack((R_trunc, u.reshape(-1, n_u)))
+
+        alpha1, alpha2 = frank_wolfe_nmf(R_trunc, u, meth_frequency, alpha1, alpha2, purity, n_iter2, d_x)
+        
+        l_w = (np.linalg.norm(alpha2) * 
+               np.linalg.norm(alpha2.T) * 
+               np.linalg.norm(d_x.astype(np.float64)))
+
+        alpha = np.vstack((alpha1, alpha2))
+
+        cf = cost_f_w(meth_frequency, R, alpha, d_x)
+
+        if abs(cf - cf_0) < tol:
+            break
+
+
+    return u, alpha
     
     
 
@@ -457,8 +573,9 @@ def main():
     # Add regular arguments
     parser.add_argument('--methfreq', nargs='+', type=str, required=True, help='Methylation frequency file path (values between 0 and 1)')
     parser.add_argument('--ref', nargs='?', type=str, help='Methylation reference matrix file path')
-    parser.add_argument('--iterations', default=[10000, 20], nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default = 10000, 20)')
+    parser.add_argument('--iterations', nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default = 10000, 20)')
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
+    parser.add_argument('--purity', nargs='+', type=int, help="The purity of the sample in percent [0,100], if known")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
     parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
@@ -467,7 +584,6 @@ def main():
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
     parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
 
-    # Create a mutually exclusive group
     group = parser.add_mutually_exclusive_group()
 
     # Add conflicting arguments to the group
@@ -477,6 +593,24 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
+
+
+    if not args.iterations:
+        if args.purity:
+            args.iterations = [100, 500]
+        else:
+            args.iterations = [10000, 20]
+
+    if args.purity:
+        purity = np.array(args.purity)
+        if np.any((purity >= 0) & (purity <= 1)):
+            print("Purity is between 0 and 1, are you sure that it's a percentage?")
+        elif np.any((purity < 0) & (purity > 100)):
+            sys.stderr.write("Error: Invalid value for purity, not within [0,100] bounds.")
+            sys.exit(1)
+
+        purity = purity / 100.0
+
 
     if args.ic:
         if args.nbunknown:
@@ -488,7 +622,6 @@ def main():
     
     print(logo)
     
-    # create output dir if it doesn't exist
     outdir = os.path.join(os.getcwd(), args.outdir)
     if not os.path.exists(outdir):
         print(f'Creating directory {outdir} to store results')
@@ -537,12 +670,11 @@ def main():
 
     args.methfreq = [bla.split("/")[-1] for bla in args.methfreq]
 
-        
     # deconvolution
     time_start = time()
 
     if(args.confidence):
-        bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq)
+        bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity)
 
     if(not args.ref):
         ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
@@ -557,8 +689,12 @@ def main():
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
         
     elif(args.nbunknown[0] > 0 and meth_f.shape[1] >= 1):
-        u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls)
-        ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+        if args.purity:
+            u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = fs_irls)
+            ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], purity,n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+        else:
+            u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls)
+            ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
@@ -592,7 +728,6 @@ def main():
         if(args.confidence):
             ci_df = bt_results[0]
         plot_proportions(proportions, ci_df, outdir)
-        
 
 if __name__ == "__main__":
 	main()

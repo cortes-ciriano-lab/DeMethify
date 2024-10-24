@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import pandas as pd
 import tqdm
 from sklearn.utils import resample
@@ -19,7 +20,9 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
     if not supervised:
         ref_estimate_list = [[] for k in range(n_u)]
 
-    for i in tqdm.tqdm(range(n_bootstrap)):
+    tqdm_disable = not sys.stdout.isatty()
+    
+    for i in tqdm.tqdm(range(n_bootstrap), disable=tqdm_disable):
         meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref)
 
         if(not supervised):

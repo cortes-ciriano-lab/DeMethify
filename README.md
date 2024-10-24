@@ -134,7 +134,7 @@ demethify \
 With the --confidence flag (arguments are confidence level in percentage and number of bootstrap iterations), you can obtain confidence intervals for the estimates and the --plot flag generates plots so that you can visualise the proportions estimates like this:
 
 ```
-!demethify \
+demethify \
     --ref output_gen/ref_matrix.bed \
     --methfreq output_gen/sample{1..10}.bed \
     --nbunknown 1 \

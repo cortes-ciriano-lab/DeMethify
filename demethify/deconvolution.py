@@ -300,7 +300,7 @@ def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_
     alpha2_ = alpha2.copy()
 
     d = d_x.max() ** 2
-    l_w = (np.linalg.norm(alpha2 ** 2) * d
+    l_w = (np.linalg.norm(alpha2)**2) * d
     l_w_ = l_w
     
     cf = cost_f_w(meth_frequency, R, alpha, d_x)  
@@ -312,7 +312,7 @@ def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_
 
         alpha1, alpha2 = frank_wolfe_nmf(R_trunc, u, meth_frequency, alpha1, alpha2, purity, n_iter2, d_x)
         
-        l_w = (np.linalg.norm(alpha2 ** 2) * d
+        l_w = (np.linalg.norm(alpha2)**2) * d
 
         alpha = np.vstack((alpha1, alpha2))
 

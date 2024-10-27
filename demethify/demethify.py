@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--ic', nargs="?", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
     parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
+    parser.add_argument('--seed', nargs=1, type=int, help='Set a seed integer number for random number generation for reproducibility. ')
 
     group = parser.add_mutually_exclusive_group()
 
@@ -49,6 +50,9 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
+
+    if args.seed:
+        args.seed = args.seed[0]
 
 
     if not args.iterations:
@@ -130,26 +134,26 @@ def main():
     time_start = time()
 
     if(args.confidence):
-        bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity)
+        bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity, args.seed)
 
     if(not args.ref):
-        ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+        ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination, seed=args.seed)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header = unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
         
     elif(args.ic):
-        ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic)
+        ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
         
     elif(args.nbunknown[0] > 0 and meth_f.shape[1] >= 1):
         if args.purity:
-            u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = fs_irls)
+            u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = fs_irls, seed=args.seed)
             ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], purity,n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
         else:
-            u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls)
+            u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls, seed=args.seed)
             ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header += unknown_header
@@ -158,7 +162,7 @@ def main():
     elif(args.nbunknown[0] == 0 and meth_f.shape[1] >= 1):
         alpha_tab = []
         for k in range(meth_f.shape[1]):
-            alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
+            alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=args.seed))
         proportions = np.concatenate(alpha_tab, axis = 1)
     else:
         exit(f'Invalid number of unknown value! : "{args.nbunknown}" ')

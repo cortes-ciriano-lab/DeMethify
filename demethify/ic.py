@@ -14,7 +14,7 @@ def compute_aic(cost, n_u, n_cpg, n_ct, n_samples):
     return aic
 
 # @njit
-def evaluate_best_ic(meth_f, ref, counts, init_option, ic):
+def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed):
     # Example parameters
     max_range=meth_f.shape[1]
     n_u_values = range(0, max_range + 1)  
@@ -29,14 +29,14 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic):
     for n_u in n_u_values:
         # Run the deconvolution for the current n_u
         if(n_u >= 1):
-            u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = fs_irls)
-            u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2)
+            u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = fs_irls, seed=seed)
+            u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2, seed=seed)
             R = np.hstack((ref, u.reshape(-1, n_u)))
 
         else:
             alpha_tab = []
             for k in range(n_samples):
-                alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
+                alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=seed))
             alpha = np.concatenate(alpha_tab, axis = 1)
             R = ref
 

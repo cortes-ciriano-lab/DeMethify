@@ -6,7 +6,7 @@ from sklearn.utils import resample
 from .deconvolution import *
 
 
-def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples, purity):
+def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples, purity, seed):
     supervised = n_u == 0
     a = 1 - confidence_level / 100
     lower_percentile = 100 * (a / 2)  # Lower percentile for confidence interval
@@ -23,22 +23,22 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
     tqdm_disable = not sys.stdout.isatty()
     
     for i in tqdm.tqdm(range(n_bootstrap), disable=tqdm_disable):
-        meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref)
+        meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref, random_state=seed)
 
         if(not supervised):
             if yes_purity:
                 
-                u, R, alpha = init_BSSMF_md_p(init_option, meth_f, counts, ref, n_u, purity, rb_alg = fs_irls)
+                u, R, alpha = init_BSSMF_md_p(init_option, meth_f, counts, ref, n_u, purity, seed=seed, rb_alg = fs_irls)
                 ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, purity, n_iter1, n_iter2, tol)
             else:
-                u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=fs_irls)
+                u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=fs_irls, seed=seed)
                 ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, n_iter1, n_iter2, tol)
             for k in range(n_u):
                 ref_estimate_list[k].append(ref_estimate[:,k:k+1])
         else:
             alpha_tab = []
             for k in range(meth_f.shape[1]):
-                alpha_tab.append(fs_irls(counts_resampled[:,k:k+1] * meth_f_resampled[:,k:k+1], counts_resampled[:,k:k+1], ref_resampled))
+                alpha_tab.append(fs_irls(counts_resampled[:,k:k+1] * meth_f_resampled[:,k:k+1], counts_resampled[:,k:k+1], ref_resampled, seed=seed))
             proportions = np.concatenate(alpha_tab, axis = 1)
     
         for j in range(meth_f.shape[1]):

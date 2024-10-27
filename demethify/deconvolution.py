@@ -6,6 +6,10 @@ from sklearn.decomposition import FastICA
 from sklearn.decomposition import TruncatedSVD
 from numba import njit
 
+def set_seed(seed=None):
+    if seed is not None:
+        rd.seed(seed)
+
 @njit
 def cost_f_w(y, R, alpha, d_x):
     # return np.linalg.norm((y - R @ alpha))**2
@@ -40,7 +44,8 @@ def wls_deconv(ref, samples, weights):
 
 
 
-def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000):
+def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000, seed=None):
+    set_seed(seed)
     nb_celltypes = R_full.shape[1]
     alpha = np.reshape(rd.dirichlet(np.ones(nb_celltypes)), (nb_celltypes, 1))
     
@@ -59,7 +64,8 @@ def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000):
     
     return alpha
 
-def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_irls):
+def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb_alg = fs_irls):
+    set_seed(seed)
     alpha_tab = []
     nb = meth_frequency.shape[1]
 
@@ -70,12 +76,12 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, rb_alg = fs_ir
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
     elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200)
+        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, random_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
     elif(init_option == 'SVD'):
-        tt = TruncatedSVD(n_components = n_u)
+        tt = TruncatedSVD(n_components = n_u, random_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
@@ -119,8 +125,8 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
 
 
 
-def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=50, tol=1e-3):
-
+def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=50, tol=1e-3, seed=None):
+    set_seed(seed)
     if(init_option != "uniform" and n_u > meth_frequency.shape[1]):
         print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
         init_option = 'uniform'
@@ -128,12 +134,12 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (meth_frequency.shape[0], n_u)) 
     elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components = n_u)
+        tt = FastICA(n_components = n_u, random_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
     elif(init_option == 'SVD'):
-        tt = TruncatedSVD(n_components = n_u)
+        tt = TruncatedSVD(n_components = n_u,random_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
@@ -228,7 +234,8 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
 
 
 
-def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = fs_irls):
+def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = fs_irls, seed=None):
+    set_seed(seed)
     alpha_tab = []
     nb = meth_frequency.shape[1]
 
@@ -239,12 +246,12 @@ def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_a
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
     elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200)
+        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, randon_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
     elif(init_option == 'SVD'):
-        tt = TruncatedSVD(n_components = n_u)
+        tt = TruncatedSVD(n_components = n_u, random_state = seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)

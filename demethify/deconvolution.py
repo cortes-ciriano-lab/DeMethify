@@ -144,12 +144,12 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
     a2 = 1.0
     u_ = u.copy()
     alpha_ = alpha.copy()
-	
+
     d = d_x.max() ** 2
-    l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
+    l_w = (np.linalg.norm(alpha[-n_u:])**2) *  d
     l_w_ = l_w
     
-    l_h = (np.linalg.norm(R)**2) * d
+    l_h = (np.linalg.norm(u)**2) *d 
     l_h_ = l_h
     
     
@@ -167,7 +167,7 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
             u = np.clip((u_temp + (d_x * ((meth_frequency -  u @ alpha)) @ alpha.T) / l_w), 0, 1)
             l_w_ = l_w
 
-    	l_h = (np.linalg.norm(R)**2) * d
+        l_h = (np.linalg.norm(u)**2) * d
 
         for j in range(n_iter2):
             a0 = a2
@@ -178,7 +178,7 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
             alpha = projection_simplex_sort_2d(alpha_temp + (u.T @ (d_x * (meth_frequency - u @ alpha_temp))) / l_h)
             l_h_ = l_h
 
-    	l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
+        l_w = (np.linalg.norm(alpha[-n_u:])**2) *  d
 
         cf = cost_f_w(meth_frequency, u, alpha, d_x)
 
@@ -198,8 +198,7 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
     alpha_ = alpha.copy()
 
     d = d_x.max() ** 2
-    
-    l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
+    l_w = (np.linalg.norm(alpha[-n_u:])**2) * d
     l_w_ = l_w
     
     l_h = (np.linalg.norm(R)**2) * d
@@ -213,11 +212,11 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
         u, u_, a1, l_w_ = update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x)
         R = np.hstack((R_trunc, u.reshape(-1, n_u)))
 
-    	l_h = (np.linalg.norm(R)**2) * d
+        l_h = (np.linalg.norm(R)**2) * d
 
         alpha, alpha_, a2, l_h_ = update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency)
 
-    	l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
+        l_w = (np.linalg.norm(alpha[-n_u:])**2) * d
 
         cf = cost_f_w(meth_frequency, R, alpha, d_x)
 

@@ -144,15 +144,12 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
     a2 = 1.0
     u_ = u.copy()
     alpha_ = alpha.copy()
-    
-    l_w = (np.linalg.norm(alpha[-n_u:]) * 
-           np.linalg.norm(alpha[-n_u:].T) * 
-           np.linalg.norm(d_x.astype(np.float64)))
+	
+    d = d_x.max() ** 2
+    l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
     l_w_ = l_w
     
-    l_h = (np.linalg.norm(u.T) * 
-           np.linalg.norm(d_x.astype(np.float64)) * 
-           np.linalg.norm(u))
+    l_h = (np.linalg.norm(R)**2) * d
     l_h_ = l_h
     
     
@@ -170,9 +167,7 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
             u = np.clip((u_temp + (d_x * ((meth_frequency -  u @ alpha)) @ alpha.T) / l_w), 0, 1)
             l_w_ = l_w
 
-        l_h = (np.linalg.norm(u.T) * 
-               np.linalg.norm(d_x.astype(np.float64)) * 
-               np.linalg.norm(u))
+    	l_h = (np.linalg.norm(R)**2) * d
 
         for j in range(n_iter2):
             a0 = a2
@@ -183,9 +178,7 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
             alpha = projection_simplex_sort_2d(alpha_temp + (u.T @ (d_x * (meth_frequency - u @ alpha_temp))) / l_h)
             l_h_ = l_h
 
-        l_w = (np.linalg.norm(alpha[-n_u:]) * 
-               np.linalg.norm(alpha[-n_u:].T) * 
-               np.linalg.norm(d_x.astype(np.float64)))
+    	l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
 
         cf = cost_f_w(meth_frequency, u, alpha, d_x)
 
@@ -203,15 +196,13 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
     a2 = 1.0
     u_ = u.copy()
     alpha_ = alpha.copy()
+
+    d = d_x.max() ** 2
     
-    l_w = (np.linalg.norm(alpha[-n_u:]) * 
-           np.linalg.norm(alpha[-n_u:].T) * 
-           np.linalg.norm(d_x.astype(np.float64)))
+    l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
     l_w_ = l_w
     
-    l_h = (np.linalg.norm(R.T) * 
-           np.linalg.norm(d_x.astype(np.float64)) * 
-           np.linalg.norm(R))
+    l_h = (np.linalg.norm(R)**2) * d
     l_h_ = l_h
     
     cf = cost_f_w(meth_frequency, R, alpha, d_x)  
@@ -222,15 +213,11 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
         u, u_, a1, l_w_ = update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u, d_x)
         R = np.hstack((R_trunc, u.reshape(-1, n_u)))
 
-        l_h = (np.linalg.norm(R.T) * 
-               np.linalg.norm(d_x.astype(np.float64)) * 
-               np.linalg.norm(R))
+    	l_h = (np.linalg.norm(R)**2) * d
 
         alpha, alpha_, a2, l_h_ = update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency)
 
-        l_w = (np.linalg.norm(alpha[-n_u:]) * 
-               np.linalg.norm(alpha[-n_u:].T) * 
-               np.linalg.norm(d_x.astype(np.float64)))
+    	l_w = (np.linalg.norm(alpha[-n_u:]) ** 2) * d
 
         cf = cost_f_w(meth_frequency, R, alpha, d_x)
 
@@ -288,9 +275,6 @@ def frank_wolfe_nmf(W1, W2, meth_frequency, alpha1_init, alpha2_init, purity, ma
     for k in range(max_iter):
         grad_alpha1 = - W1.T @  (d_x * (meth_frequency - W1 @ alpha1 - W2 @ alpha2))
         grad_alpha2 = - W2.T @ (d_x * (meth_frequency - W1 @ alpha1 - W2 @ alpha2))
-        
-        # grad_alpha1 = -2 * W1.T @ (meth_frequency - W1 @ alpha1 - W2 @ alpha2)
-        # grad_alpha2 = -2 * W2.T @ (meth_frequency - W1 @ alpha1 - W2 @ alpha2)
 
         s_alpha1 = np.zeros_like(alpha1)
         s_alpha2 = np.zeros_like(alpha2)
@@ -315,10 +299,9 @@ def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_
     alpha1, alpha2 = alpha[:-n_u], alpha[-n_u:]
     alpha1_ = alpha1.copy()
     alpha2_ = alpha2.copy()
-    
-    l_w = (np.linalg.norm(alpha[-n_u:]) * 
-           np.linalg.norm(alpha[-n_u:].T) * 
-           np.linalg.norm(d_x.astype(np.float64)))
+
+    d = d_x.max() ** 2
+    l_w = (np.linalg.norm(alpha2 ** 2) * d
     l_w_ = l_w
     
     cf = cost_f_w(meth_frequency, R, alpha, d_x)  
@@ -330,9 +313,7 @@ def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_
 
         alpha1, alpha2 = frank_wolfe_nmf(R_trunc, u, meth_frequency, alpha1, alpha2, purity, n_iter2, d_x)
         
-        l_w = (np.linalg.norm(alpha2) * 
-               np.linalg.norm(alpha2.T) * 
-               np.linalg.norm(d_x.astype(np.float64)))
+        l_w = (np.linalg.norm(alpha2 ** 2) * d
 
         alpha = np.vstack((alpha1, alpha2))
 

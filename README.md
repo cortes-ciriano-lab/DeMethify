@@ -93,8 +93,7 @@ If you want to perform fully reference-based methylation deconvolution, just lea
 ```
 demethify \
     --ref output_gen/ref_matrix.bed \
-    --methfreq \
-    output_gen/sample{1..10}.bed \
+    --methfreq output_gen/sample{1..10}.bed \
     --bedmethyl \
     --outdir output_ref_based \
     --plot

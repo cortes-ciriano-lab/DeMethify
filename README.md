@@ -3,24 +3,27 @@
                                        
 DeMethify is a partial-reference based methylation deconvolution algorithm that uses a weighted constrained version of an iteratively optimized negative matrix factorization algorithm. 
 
-## Flags and arguments
-| Option              | Description                                                                                           |
-|---------------------|-------------------------------------------------------------------------------------------------------|
-| `methfreq`          | Methylation frequency file path (values between 0 and 1)                                               |
-| `ref`               | Methylation reference matrix file path                                                                |
-| `outdir`            | Output directory (can exist but must be empty)                                                        |
-| `nbunknown`         | Number of unknown cell types to estimate                                                              |
-| `iterations`        | Numbers of iterations for outer and inner loops (default without purity = 10000, 20, with purity= 100, 500)                                 |
-| `purity`            | The purities of the samples in percent [0,100], if known                                                 |
-| `termination`       | Termination condition for cost function (default = 1e-2)                                              |
-| `init`              | Initialisation option (default = random uniform)                                                      |
-| `fillna`            | Replace every NA by 0 in the given data                                                               |
-| `ic`                | Select number of unknown cell types by minimising an information criterion (AIC or BIC)               |
-| `confidence`        | Outputs bootstrap confidence intervals, takes confidence level and bootstrap iteration numbers as input|
-| `plot`              | Plot cell type proportions estimates for each sample, eventually with confidence intervals.            |
-| `bedmethyl`         | Flag to indicate that the input will be bedmethyl files, modkit style                                  |
-| `counts`            | Read counts file path                                                                                 |
-| `noreadformat`      | Flag to use when the data isn't using the read format (e.g., Illumina epic arrays)                    |
+## Flags and Arguments
+
+| Option            | Description                                                                                                                     |
+|-------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `--methfreq`      | Methylation frequency file path (values between 0 and 1)                                                                        |
+| `--ref`           | Methylation reference matrix file path                                                                                          |
+| `--outdir`        | Output directory (can exist but must be empty)                                                                                  |
+| `--nbunknown`     | Number of unknown cell types to estimate                                                                                        |
+| `--iterations`    | Numbers of iterations for outer and inner loops (default without purity = 10000, 20; with purity = 100, 500)                     |
+| `--purity`        | The purities of the samples in percent [0,100], if known                                                                        |
+| `--termination`   | Termination condition for cost function (default = 1e-2)                                                                        |
+| `--init`          | Initialisation option (default = random uniform)                                                                                |
+| `--fillna`        | Replace every NA by 0 in the given data                                                                                         |
+| `--ic`            | Select number of unknown cell types by minimising an information criterion (AIC or BIC)                                         |
+| `--confidence`    | Outputs bootstrap confidence intervals, takes confidence level and bootstrap iteration numbers as input                         |
+| `--plot`          | Plot cell type proportions estimates for each sample, eventually with confidence intervals.                                     |
+| `--bedmethyl`     | Flag to indicate that the input will be bedmethyl files, modkit style                                                           |
+| `--counts`        | Read counts file path                                                                                                           |
+| `--noreadformat`  | Flag to use when the data isn't using the read format (e.g., Illumina epic arrays)                                              |
+| `--seed`          | Set a seed integer number for random number generation for reproducibility.                                                     |
+
 
 
 ## Installing DeMethify

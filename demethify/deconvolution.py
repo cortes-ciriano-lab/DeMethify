@@ -35,7 +35,7 @@ def projection_simplex_sort_2d(v, z=1):
     return w
 
 def wls_deconv(ref, samples, weights):
-    reg = LinearRegression(fit_intercept = False, positive = True).fit(ref, samples, weights.ravel())
+    reg = LinearRegression(fit_intercept = False, positive = True).fit(ref, samples, weights.ravel().clip(0.0))
     temp = reg.coef_.T
                
     P_deconv = projection_simplex_sort_2d(temp)
@@ -44,7 +44,6 @@ def wls_deconv(ref, samples, weights):
 
 def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000, seed=None):
     set_seed(seed)
-    R_full = R_full + ((R_full == 0) * 1e-16) - ((R_full == 1) * 1e-16)
     nb_celltypes = R_full.shape[1]
     alpha = np.reshape(rd.dirichlet(np.ones(nb_celltypes)), (nb_celltypes, 1))
     

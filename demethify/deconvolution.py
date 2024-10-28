@@ -38,7 +38,7 @@ def wls_deconv(ref, samples, weights):
     reg = LinearRegression(fit_intercept = False, positive = True).fit(ref, samples, weights.ravel())
     temp = reg.coef_.T
                
-    P_deconv = temp / temp.sum()
+    P_deconv = projection_simplex_sort_2d(temp)
                
     return P_deconv
 

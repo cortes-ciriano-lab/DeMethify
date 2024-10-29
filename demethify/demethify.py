@@ -52,6 +52,11 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
+
+
+    if not args.ref:
+        ref = None
+        header = []
         
     if args.restart == None:
         args.restart = 1
@@ -79,9 +84,6 @@ def main():
         if args.nbunknown:
             sys.stderr.write("Error: --ic cannot be used with --nbunknown.\n")
             sys.exit(1)
-        if not args.ref:
-            sys.stderr.write("Error: --ic requires --ref to be specified.\n")
-            sys.exit(1)
 
     if(not args.noprint):
         print(logo)
@@ -100,6 +102,7 @@ def main():
             ref = pd.read_csv(args.ref, sep='\t').iloc[:, 3:]
             header = list(ref.columns)
             ref = ref.values
+            
         list_meth_freq = []
         list_counts = []
         for bed in args.methfreq:
@@ -140,9 +143,16 @@ def main():
     if(args.confidence):
         bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity, args.seed)
 
+    if(args.ic):
+        ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed)
+        unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
+        header += unknown_header
+        pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+
     
-    if(not args.ref):
+    elif(not args.ref):
         min_cost = float('inf')
+
 
         
         for k in range(args.restart):
@@ -157,12 +167,7 @@ def main():
         header = unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
 
-    
-    elif(args.ic):        
-        ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed)
-        unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
-        header += unknown_header
-        pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
+
 
     
     elif(args.nbunknown[0] > 0 and meth_f.shape[1] >= 1):
@@ -206,8 +211,6 @@ def main():
         proportions = best_proportions
                 
         
-
-    
     else:
         exit(f'Invalid number of unknown value! : "{args.nbunknown}" ')
         

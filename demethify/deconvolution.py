@@ -126,7 +126,7 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
 
 
 
-def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=50, tol=1e-3, seed=None):
+def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=20, tol=1e-3, seed=None):
     set_seed(seed)
     if(init_option != "uniform" and n_u > meth_frequency.shape[1]):
         print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")

@@ -19,7 +19,10 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed):
     max_range=meth_f.shape[1]
     n_u_values = range(0, max_range + 1)  
     n_cpg, n_samples = meth_f.shape
-    n_ct = ref.shape[1]
+    if ref != None:
+        n_ct = ref.shape[1]
+    else:
+        n_ct = 0
 
     best_ic = float('inf')
     best_n_u = None
@@ -29,16 +32,23 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed):
     for n_u in n_u_values:
         # Run the deconvolution for the current n_u
         if(n_u >= 1):
-            u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = fs_irls, seed=seed)
-            u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2, seed=seed)
-            R = np.hstack((ref, u.reshape(-1, n_u)))
+            if ref != None:
+                u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = fs_irls, seed=seed)
+                u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2, seed=seed)
+                R = np.hstack((ref, u.reshape(-1, n_u)))
+            else:
+                u, alpha = unsupervised_deconv(meth_f, n_u, counts, init_option, 10000, 20, 1e-2, seed=seed)
+                R = u
 
         else:
-            alpha_tab = []
-            for k in range(n_samples):
-                alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=seed))
-            alpha = np.concatenate(alpha_tab, axis = 1)
-            R = ref
+            if ref != None:
+                alpha_tab = []
+                for k in range(n_samples):
+                    alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=seed))
+                alpha = np.concatenate(alpha_tab, axis = 1)
+                R = ref
+            else:
+                continue
 
         cost = cost_f_w(meth_f, R, alpha, counts)
         # Compute the BIC

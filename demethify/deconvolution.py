@@ -76,23 +76,24 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb
     
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
+        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), meth_frequency.shape[1]).T
     elif(init_option == 'ICA'): ## Independent component analysis
         tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, random_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
+        for k in range(nb):
+            alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
+        alpha = np.concatenate(alpha_tab, axis = 1)
     elif(init_option == 'SVD'):
         tt = TruncatedSVD(n_components = n_u, random_state=seed)
         u = tt.fit_transform(meth_frequency)
         u_ = (u - np.min(u)) 
         u = u_ / np.max(u_)
-
-    R = np.c_[R_trunc, u]
-
-
-    for k in range(nb):
-        alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], R))
-    alpha = np.concatenate(alpha_tab, axis = 1)
+        for k in range(nb):
+            alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
+        alpha = np.concatenate(alpha_tab, axis = 1)
+    
     
     if(alpha[-n_u:][0].all() == 0.0):
         alpha[-n_u:][0] = 1e-10

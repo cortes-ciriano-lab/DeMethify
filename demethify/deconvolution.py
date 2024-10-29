@@ -77,6 +77,10 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
         alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), meth_frequency.shape[1]).T
+    elif(init_option == 'beta'): 
+        temp = np_ones((R_trunc.shape[0], n_u))
+        u = rd.beta(temp *0.5, temp*0.5) 
+        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), meth_frequency.shape[1]).T
     elif(init_option == 'ICA'): ## Independent component analysis
         tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, random_state=seed)
         u = tt.fit_transform(meth_frequency)
@@ -135,6 +139,9 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
     
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (meth_frequency.shape[0], n_u)) 
+    elif(init_option == 'beta'): 
+        temp = np_ones((meth_frequency.shape[0], n_u))
+        u = rd.beta(temp *0.5, temp*0.5) 
     elif(init_option == 'ICA'): ## Independent component analysis
         tt = FastICA(n_components = n_u, random_state=seed)
         u = tt.fit_transform(meth_frequency)
@@ -247,6 +254,9 @@ def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_a
     
     if(init_option == 'uniform'): ## Random uniform
         u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
+    elif(init_option == 'beta'): 
+        temp = np_ones((R_trunc.shape[0], n_u))
+        u = rd.beta(temp *0.5, temp*0.5) 
     elif(init_option == 'ICA'): ## Independent component analysis
         tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, randon_state=seed)
         u = tt.fit_transform(meth_frequency)

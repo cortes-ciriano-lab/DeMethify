@@ -94,7 +94,7 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb
             alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
         alpha = np.concatenate(alpha_tab, axis = 1)
     
-    
+    R = np.c_[R_trunc, u]
     if(alpha[-n_u:][0].all() == 0.0):
         alpha[-n_u:][0] = 1e-10
         alpha[:-n_u] = (1 - 1e-10) * alpha[:-n_u]

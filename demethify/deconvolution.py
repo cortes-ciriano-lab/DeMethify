@@ -10,6 +10,9 @@ def set_seed(seed=None):
     if seed is not None:
         rd.seed(seed)
 
+def ll(meth, counts, ref, alpha):
+    return np.sum(meth * np.log(ref @ alpha + 1e-20) + (counts - meth) * np.log(1 - ref @ alpha + 1e-20))
+
 @njit
 def cost_f_w(y, R, alpha, d_x):
     # return np.linalg.norm((y - R @ alpha))**2

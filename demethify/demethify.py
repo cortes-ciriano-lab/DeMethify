@@ -39,7 +39,9 @@ def main():
     parser.add_argument('--ic', nargs="?", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
     parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
-    parser.add_argument('--seed', nargs=1, type=int, help='Set a seed integer number for random number generation for reproducibility. ')
+    parser.add_argument('--restart', nargs=1, type=int, help='Number of random restarts among which to select the one with the lowest cost/highest loglikelihood')
+    parser.add_argument('--seed', nargs=1, type=int, default=1, help='Set a seed integer number for random number generation for reproducibility. ')
+    parser.add_argument('--noprint', action="store_true", help='Doesnt show the logo.')
 
     group = parser.add_mutually_exclusive_group()
 
@@ -50,10 +52,11 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
-
-    if args.seed:
-        args.seed = args.seed[0]
-
+        
+    if args.restart == None:
+        args.restart = 1
+    else:
+        args.restart = args.restart[0]
 
     if not args.iterations:
         if args.purity:
@@ -69,7 +72,7 @@ def main():
             sys.stderr.write("Error: Invalid value for purity, not within [0,100] bounds.")
             sys.exit(1)
 
-        purity = purity / 100.0
+        purity = 1- (purity / 100.0)
 
 
     if args.ic:
@@ -79,8 +82,9 @@ def main():
         if not args.ref:
             sys.stderr.write("Error: --ic requires --ref to be specified.\n")
             sys.exit(1)
-    
-    print(logo)
+
+    if(not args.noprint):
+        print(logo)
     
     outdir = os.path.join(os.getcwd(), args.outdir)
     if not os.path.exists(outdir):
@@ -136,34 +140,74 @@ def main():
     if(args.confidence):
         bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity, args.seed)
 
+    
     if(not args.ref):
-        ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination, seed=args.seed)
+        min_cost = float('inf')
+
+        
+        for k in range(args.restart):
+            ref_estimate, proportions = unsupervised_deconv(meth_f, args.nbunknown[0], counts, args.init, n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination, seed=args.seed)
+            curr_cost = cost_f_w(meth_f, ref_estimate, proportions, counts)
+            if(curr_cost < min_cost):
+                min_cost = curr_cost
+                best_ref_estimate, best_proportions = ref_estimate, proportions
+                
+        ref_estimate, proportions = best_ref_estimate, best_proportions
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header = unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
-        
-    elif(args.ic):
+
+    
+    elif(args.ic):        
         ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
-        
+
+    
     elif(args.nbunknown[0] > 0 and meth_f.shape[1] >= 1):
+        min_cost = float('inf')
         if args.purity:
-            u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = fs_irls, seed=args.seed)
-            ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], purity,n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+            for k in range(args.restart):
+                u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = fs_irls, seed=args.seed)
+                ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], purity,n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+                R = np.hstack((ref, ref_estimate))
+                curr_cost = cost_f_w(meth_f, R, proportions, counts)
+                if(curr_cost < min_cost):
+                    min_cost = curr_cost
+                    best_ref_estimate, best_proportions = ref_estimate, proportions
+            ref_estimate, proportions = best_ref_estimate, best_proportions
         else:
-            u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls, seed=args.seed)
-            ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+            for k in range(args.restart):
+                u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls, seed=args.seed)
+                ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
+                R = np.hstack((ref, ref_estimate))
+                curr_cost = cost_f_w(meth_f, R, proportions, counts)
+                if(curr_cost < min_cost):
+                    min_cost = curr_cost
+                    best_ref_estimate, best_proportions = ref_estimate, proportions
+            ref_estimate, proportions = best_ref_estimate, best_proportions
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(args.nbunknown[0])]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
-        
+
+    
     elif(args.nbunknown[0] == 0 and meth_f.shape[1] >= 1):
-        alpha_tab = []
-        for k in range(meth_f.shape[1]):
-            alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=args.seed))
-        proportions = np.concatenate(alpha_tab, axis = 1)
+        max_ll = float('-inf')
+        for l in range(args.restart):
+            alpha_tab = []
+            for k in range(meth_f.shape[1]):
+                alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=args.seed))
+            proportions = np.concatenate(alpha_tab, axis = 1)
+            curr_ll = ll(meth_f * counts, counts, ref, proportions)
+            if(curr_ll > max_ll):
+                max_ll = curr_ll
+                best_proportions = proportions
+        proportions = best_proportions
+                
+        
+
+    
     else:
         exit(f'Invalid number of unknown value! : "{args.nbunknown}" ')
         

@@ -31,7 +31,7 @@ def main():
     parser.add_argument('--ref', nargs='?', type=str, help='Methylation reference matrix file path')
     parser.add_argument('--iterations', nargs=2, type=int, help='Numbers of iterations for outer and inner loops (default without purity = 10000, 20, with purity= 100, 500)')
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
-    parser.add_argument('--purity', nargs='+', type=int, help="The purities of the samples in percent [0,100], if known")
+    parser.add_argument('--purity', nargs='+', type=float, help="The purities of the samples in percent [0,100], if known")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
     parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')

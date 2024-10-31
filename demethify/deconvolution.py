@@ -45,7 +45,7 @@ def wls_deconv(ref, samples, weights):
                
     return P_deconv
 
-def fs_irls(x, d_x, R_full, tol = 1e-4, n_iter = 1000, seed=None):
+def fs_irls(x, d_x, R_full, tol = 1e-8, n_iter = 10000, seed=None):
     set_seed(seed)
     nb_celltypes = R_full.shape[1]
     alpha = np.reshape(rd.dirichlet(np.ones(nb_celltypes)), (nb_celltypes, 1))

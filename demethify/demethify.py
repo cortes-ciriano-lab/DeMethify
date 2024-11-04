@@ -178,6 +178,7 @@ def main():
                 ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], purity,n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
                 R = np.hstack((ref, ref_estimate))
                 curr_cost = cost_f_w(meth_f, R, proportions, counts)
+		print(curr_cost)    
                 if(curr_cost < min_cost):
                     min_cost = curr_cost
                     best_ref_estimate, best_proportions = ref_estimate, proportions

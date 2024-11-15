@@ -10,9 +10,6 @@ def set_seed(seed=None):
     if seed is not None:
         rd.seed(seed)
 
-def ll(meth, counts, ref, alpha):
-    return np.sum(meth * np.log(ref @ alpha + 1e-20) + (counts - meth) * np.log(1 - ref @ alpha + 1e-20))
-
 @njit
 def cost_f_w(y, R, alpha, d_x):
     # return np.linalg.norm((y - R @ alpha))**2
@@ -37,35 +34,15 @@ def projection_simplex_sort_2d(v, z=1):
     
     return w
 
-def wls_deconv(ref, samples, weights):
-    reg = LinearRegression(fit_intercept = False, positive = True).fit(ref, samples, weights.ravel().clip(0.0))
+def wls_intercept(x, d_x, R_full):
+    reg = LinearRegression(fit_intercept = True, positive = True).fit(R_full, x, d_x.ravel())
     temp = reg.coef_.T
                
-    P_deconv = projection_simplex_sort_2d(temp)
+    P_deconv = temp / temp.sum()
                
     return P_deconv
 
-def fs_irls(x, d_x, R_full, tol = 1e-14, n_iter = 10000, seed=None):
-    set_seed(seed)
-    nb_celltypes = R_full.shape[1]
-    alpha = np.reshape(rd.dirichlet(np.ones(nb_celltypes)), (nb_celltypes, 1))
-    
-    for k in range(n_iter):
-        gamma = R_full @ alpha
-        W = np.divide(d_x, (gamma * (1 - gamma)) + 1e-16)
-        W[np.isnan(W)] = 1e-16
-        z = np.divide(x, d_x)
-        z[np.isnan(z)] = 1e-16
-        a =  wls_deconv(R_full, z, W)
-        
-        if(np.mean(abs(a - alpha)) / np.mean(abs(alpha)) < tol):
-            break
-        else:
-            alpha = a
-    
-    return alpha
-
-def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb_alg = fs_irls):
+def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb_alg = wls_intercept):
     set_seed(seed)
     alpha_tab = []
     nb = meth_frequency.shape[1]
@@ -243,7 +220,7 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
 
 
 
-def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = fs_irls, seed=None):
+def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = wls_intercept, seed=None):
     set_seed(seed)
     alpha_tab = []
     nb = meth_frequency.shape[1]

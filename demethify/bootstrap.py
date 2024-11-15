@@ -28,17 +28,17 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
         if(not supervised):
             if yes_purity:
                 
-                u, R, alpha = init_BSSMF_md_p(init_option, meth_f, counts, ref, n_u, purity, seed=seed, rb_alg = fs_irls)
+                u, R, alpha = init_BSSMF_md_p(init_option, meth_f, counts, ref, n_u, purity, seed=seed, rb_alg = wls_intercept)
                 ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, purity, n_iter1, n_iter2, tol)
             else:
-                u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=fs_irls, seed=seed)
+                u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=wls_intercept, seed=seed)
                 ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, n_iter1, n_iter2, tol)
             for k in range(n_u):
                 ref_estimate_list[k].append(ref_estimate[:,k:k+1])
         else:
             alpha_tab = []
             for k in range(meth_f.shape[1]):
-                alpha_tab.append(fs_irls(counts_resampled[:,k:k+1] * meth_f_resampled[:,k:k+1], counts_resampled[:,k:k+1], ref_resampled, seed=seed))
+                alpha_tab.append(wls_intercept(counts_resampled[:,k:k+1] * meth_f_resampled[:,k:k+1], counts_resampled[:,k:k+1], ref_resampled))
             proportions = np.concatenate(alpha_tab, axis = 1)
     
         for j in range(meth_f.shape[1]):

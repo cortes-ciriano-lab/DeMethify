@@ -174,7 +174,7 @@ def main():
         min_cost = float('inf')
         if args.purity:
             for k in range(args.restart):
-                u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = fs_irls, seed=args.seed)
+                u, R, alpha = init_BSSMF_md_p(args.init, meth_f, counts, ref, args.nbunknown[0], purity, rb_alg = wls_intercept, seed=args.seed)
                 ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], purity,n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
                 R = np.hstack((ref, ref_estimate))
                 curr_cost = cost_f_w(meth_f, R, proportions, counts)
@@ -184,7 +184,7 @@ def main():
             ref_estimate, proportions = best_ref_estimate, best_proportions
         else:
             for k in range(args.restart):
-                u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = fs_irls, seed=args.seed)
+                u, R, alpha = init_BSSMF_md(args.init, meth_f, counts, ref, args.nbunknown[0], rb_alg = wls_intercept, seed=args.seed)
                 ref_estimate, proportions = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, args.nbunknown[0], n_iter1 = args.iterations[0], n_iter2 = args.iterations[1], tol = args.termination)
                 R = np.hstack((ref, ref_estimate))
                 curr_cost = cost_f_w(meth_f, R, proportions, counts)
@@ -198,17 +198,10 @@ def main():
 
     
     elif(args.nbunknown[0] == 0 and meth_f.shape[1] >= 1):
-        max_ll = float('-inf')
-        for l in range(args.restart):
-            alpha_tab = []
-            for k in range(meth_f.shape[1]):
-                alpha_tab.append(fs_irls(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref, seed=args.seed))
-            proportions = np.concatenate(alpha_tab, axis = 1)
-            curr_ll = ll(meth_f * counts, counts, ref, proportions)
-            if(curr_ll > max_ll):
-                max_ll = curr_ll
-                best_proportions = proportions
-        proportions = best_proportions
+        alpha_tab = []
+        for k in range(meth_f.shape[1]):
+                alpha_tab.append(wls_intercept(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
+        proportions = np.concatenate(alpha_tab, axis = 1)
                 
         
     else:

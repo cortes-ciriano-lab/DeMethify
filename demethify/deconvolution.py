@@ -2,9 +2,8 @@ import numpy as np
 import numpy.random as rd
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from sklearn.decomposition import FastICA
-from sklearn.decomposition import TruncatedSVD
 from numba import njit
+from .init_func import *
 
 def set_seed(seed=None):
     if seed is not None:
@@ -34,6 +33,7 @@ def projection_simplex_sort_2d(v, z=1):
     
     return w
 
+
 def wls_intercept(x, d_x, R_full):
     reg = LinearRegression(fit_intercept = True, positive = True).fit(R_full, x, d_x.ravel())
     temp = reg.coef_.T
@@ -42,44 +42,44 @@ def wls_intercept(x, d_x, R_full):
                
     return P_deconv
 
-def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed= None, rb_alg = wls_intercept):
+def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed=None, rb_alg=wls_intercept):
     set_seed(seed)
-    alpha_tab = []
     nb = meth_frequency.shape[1]
 
-    if(init_option != "uniform" and n_u > nb):
-        print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
-        init_option = 'uniform'
-    
-    if(init_option == 'uniform'): ## Random uniform
-        u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
-        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), meth_frequency.shape[1]).T
-    elif(init_option == 'beta'): 
+    if init_option != "uniform_" and n_u > nb:
+        init_option = 'uniform_'
+
+    if init_option == 'uniform':
+        u = rd.uniform(size=(R_trunc.shape[0], n_u)) 
+        alpha_tab = []
+        for k in range(nb):
+                alpha_tab.append(wls_intercept(meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
+        alpha = np.concatenate(alpha_tab, axis = 1)
+
+    elif init_option == 'uniform_':
+        u = rd.uniform(size=(R_trunc.shape[0], n_u)) 
+        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), nb).T
+
+    elif init_option == 'beta': 
         temp = np.ones((R_trunc.shape[0], n_u))
-        u = rd.beta(temp *0.5, temp*0.5) 
-        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), meth_frequency.shape[1]).T
-    elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, random_state=seed)
-        u = tt.fit_transform(meth_frequency)
-        u_ = (u - np.min(u)) 
-        u = u_ / np.max(u_)
-        for k in range(nb):
-            alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
-        alpha = np.concatenate(alpha_tab, axis = 1)
-    elif(init_option == 'SVD'):
-        tt = TruncatedSVD(n_components = n_u, random_state=seed)
-        u = tt.fit_transform(meth_frequency)
-        u_ = (u - np.min(u)) 
-        u = u_ / np.max(u_)
-        for k in range(nb):
-            alpha_tab.append(rb_alg(d_x[:,k:k+1] * meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
-        alpha = np.concatenate(alpha_tab, axis = 1)
-    
+        u = rd.beta(temp * 0.5, temp * 0.5) 
+        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), nb).T
+
+    elif init_option == 'ICA':
+        W, alpha = constrained_nn_ica(meth_frequency, R_trunc, rank=n_u, t_tol=1e-1, verbose=0)
+        alpha = projection_simplex_sort_2d(alpha)
+        u = W[:, R_trunc.shape[1]:]
+
+    elif init_option == 'SVD':
+        W, alpha = constrained_nndsvd(meth_frequency, R_trunc, rank=n_u, flag=0)
+        alpha = projection_simplex_sort_2d(alpha)
+        u = W[:, R_trunc.shape[1]:]
+
     R = np.c_[R_trunc, u]
-    if(alpha[-n_u:][0].all() == 0.0):
+    if alpha[-n_u:][0].all() == 0.0:
         alpha[-n_u:][0] = 1e-10
         alpha[:-n_u] = (1 - 1e-10) * alpha[:-n_u]
-        
+
     return u, R, alpha
 
 @njit
@@ -110,27 +110,35 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
 
 def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=20, tol=1e-3, seed=None):
     set_seed(seed)
-    if(init_option != "uniform" and n_u > meth_frequency.shape[1]):
-        print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
-        init_option = 'uniform'
-    
-    if(init_option == 'uniform'): ## Random uniform
-        u = rd.uniform(size = (meth_frequency.shape[0], n_u)) 
-    elif(init_option == 'beta'): 
+    nb = meth_frequency.shape[1]
+    if init_option != "uniform_" and n_u > nb:
+        init_option = 'uniform_'
+
+    if init_option == 'uniform':
+        u = rd.uniform(size=(meth_frequency.shape[0], n_u)) 
+        alpha_tab = []
+        for k in range(nb):
+                alpha_tab.append(wls_intercept(meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
+        alpha = np.concatenate(alpha_tab, axis = 1)
+
+    elif init_option == 'uniform_':
+        u = rd.uniform(size=(meth_frequency.shape[0], n_u)) 
+        alpha = rd.dirichlet(np.ones(n_u), nb).T
+
+    elif init_option == 'beta': 
         temp = np.ones((meth_frequency.shape[0], n_u))
-        u = rd.beta(temp *0.5, temp*0.5) 
-    elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components = n_u, random_state=seed)
-        u = tt.fit_transform(meth_frequency)
-        u_ = (u - np.min(u)) 
-        u = u_ / np.max(u_)
-    elif(init_option == 'SVD'):
-        tt = TruncatedSVD(n_components = n_u,random_state=seed)
-        u = tt.fit_transform(meth_frequency)
-        u_ = (u - np.min(u)) 
-        u = u_ / np.max(u_)
-	    
-    alpha = rd.dirichlet(np.ones(n_u), meth_frequency.shape[1]).T
+        u = rd.beta(temp * 0.5, temp * 0.5) 
+        alpha = rd.dirichlet(np.ones(n_u), nb).T
+
+    elif init_option == 'ICA':
+        u, alpha = run_nn_ica(meth_frequency, rank=n_u, t_tol=1e-1, verbose=0)
+        u = u.clip(0, 1)
+        alpha = projection_simplex_sort_2d(alpha)
+
+    elif init_option == 'SVD':
+        u, alpha = nndsvd_initialize(meth_frequency, rank=n_u)
+        u = u.clip(0, 1)
+        alpha = projection_simplex_sort_2d(alpha)
     
     a1 = 1.0
     a2 = 1.0
@@ -219,39 +227,47 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
 
 
 
-
 def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = wls_intercept, seed=None):
     set_seed(seed)
-    alpha_tab = []
     nb = meth_frequency.shape[1]
 
     if(init_option != "uniform" and n_u > nb):
         print("The number of unknowns is greater than the number of samples, we'll go with a uniform initialisation. ")
         init_option = 'uniform'
     
-    if(init_option == 'uniform'): ## Random uniform
-        u = rd.uniform(size = (R_trunc.shape[0], n_u)) 
-    elif(init_option == 'beta'): 
+    if init_option != "uniform_" and n_u > nb:
+        init_option = 'uniform_'
+
+    if init_option == 'uniform':
+        u = rd.uniform(size=(R_trunc.shape[0], n_u)) 
+        alpha_tab = []
+        for k in range(nb):
+                alpha_tab.append(wls_intercept(meth_frequency[:,k:k+1], d_x[:,k:k+1], np.c_[R_trunc, u]))
+        alpha = np.concatenate(alpha_tab, axis = 1)
+
+    elif init_option == 'uniform_':
+        u = rd.uniform(size=(R_trunc.shape[0], n_u)) 
+        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), nb).T
+
+    elif init_option == 'beta': 
         temp = np.ones((R_trunc.shape[0], n_u))
-        u = rd.beta(temp *0.5, temp*0.5) 
-    elif(init_option == 'ICA'): ## Independent component analysis
-        tt = FastICA(n_components=n_u, tol=1e-2, max_iter=200, randon_state=seed)
-        u = tt.fit_transform(meth_frequency)
-        u_ = (u - np.min(u)) 
-        u = u_ / np.max(u_)
-    elif(init_option == 'SVD'):
-        tt = TruncatedSVD(n_components = n_u, random_state = seed)
-        u = tt.fit_transform(meth_frequency)
-        u_ = (u - np.min(u)) 
-        u = u_ / np.max(u_)
+        u = rd.beta(temp * 0.5, temp * 0.5) 
+        alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), nb).T
+
+    elif init_option == 'ICA':
+        W, alpha = constrained_nn_ica(meth_frequency, R_trunc, rank=n_u, t_tol=1e-1, verbose=0)
+        alpha = np.vstack((purity * projection_simplex_sort_2d(alpha[:-n_u]), (1 - purity) * projection_simplex_sort_2d(alpha[-n_u:])))
+        u = W[:, R_trunc.shape[1]:]
+
+    elif init_option == 'SVD':
+        W, alpha = constrained_nndsvd(meth_frequency, R_trunc, rank=n_u, flag=0)
+        alpha = np.vstack((purity * projection_simplex_sort_2d(alpha[:-n_u]), projection_simplex_sort_2d(alpha[-n_u:])))
+        u = W[:, R_trunc.shape[1]:]
 
     R = np.c_[R_trunc, u]
-
-    alpha1 = purity * rd.dirichlet(np.ones(R_trunc.shape[1]), meth_frequency.shape[1]).T
-    alpha2 =  (1 - purity) * rd.dirichlet(np.ones(n_u), meth_frequency.shape[1]).T
-    alpha = np.vstack((alpha1, alpha2))
         
     return u, R, alpha
+    
 @njit
 def argmin_vertex_in_simplex(grad_alpha, purity):
     i_min = np.argmin(grad_alpha)
@@ -261,6 +277,7 @@ def argmin_vertex_in_simplex(grad_alpha, purity):
     s_alpha[i_min] = purity
     
     return s_alpha
+    
 @njit
 def frank_wolfe_nmf(W1, W2, meth_frequency, alpha1_init, alpha2_init, purity, max_iter, d_x):
     num_columns = alpha1_init.shape[1]  
@@ -319,3 +336,4 @@ def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_
 
 
     return u, alpha
+

@@ -48,7 +48,6 @@ def main():
     # Add conflicting arguments to the group
     group.add_argument('--bedmethyl', action='store_true', help="Flag to indicate that the input will be bedmethyl files, modkit style")
     group.add_argument('--counts', nargs='+', type=str, help='Read counts file path')
-    group.add_argument('--noreadformat', action="store_true", help="Flag to use when the data isn\'t using the read format (e.g Illumina epic arrays)")
 
     # Parse the arguments
     args = parser.parse_args()
@@ -100,9 +99,11 @@ def main():
     if(args.bedmethyl):
         if(args.ref):
             ref = pd.read_csv(args.ref, sep='\t').iloc[:, 3:]
+            if(args.fillna):
+                ref.fillna(0, inplace = True)
             header = list(ref.columns)
             ref = ref.values
-            
+
         list_meth_freq = []
         list_counts = []
         for bed in args.methfreq:
@@ -117,23 +118,26 @@ def main():
 
     # read csv files
     else:
-        meth_f = pd.read_csv(args.methfreq).values
         if(args.ref):
             ref = pd.read_csv(args.ref)
+            if(args.fillna):
+                ref.fillna(0, inplace = True)
             header = list(ref.columns)
             ref = ref.values
-
-        if(args.fillna):
-            meth_f.fillna(0, inplace = True)
-            if(args.ref):
-                ref.fillna(0, inplace = True)
-        if(not(args.noreadformat)):
-            counts = pd.read_csv(args.counts).values
+                
+        list_meth_freq = []
+        list_counts = []
+        for csv in args.methfreq:
+            temp = pd.read_csv(csv)
+            if(temp.shape[1] == 1):
+                temp["valid_coverage"] = 1
             if(args.fillna):
-                counts.fillna(0, inplace = True)
-        else:
-            counts = np.ones_like(meth_f)
-
+                temp = temp.fillna(0)
+            list_meth_freq.append(temp["percent_modified"].values / 100)
+            list_counts.append(temp["valid_coverage"].values)
+        meth_f = np.column_stack(list_meth_freq)
+        counts = np.column_stack(list_counts)
+        
 
     args.methfreq = [bla.split("/")[-1] for bla in args.methfreq]
 

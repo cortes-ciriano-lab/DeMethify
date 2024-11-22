@@ -95,7 +95,6 @@ def constrained_nn_ica(Y, W1, rank, t_tol=1e-1, t_neg=None, verbose=1, i_max=1e3
 
     W2, H2 = run_nn_ica(Y_residual, rank=rank, t_tol=t_tol, t_neg=t_neg, verbose=verbose, i_max=i_max)
 
-    W2 = np.clip(W2, 0, 1)
 
     W = np.hstack([W1, W2])
     H = np.vstack([H1, H2])

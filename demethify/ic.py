@@ -1,69 +1,125 @@
 import numpy as np
 import pandas as pd
+from scipy.cluster.hierarchy import linkage, cophenet
+from scipy.spatial.distance import pdist
+from sklearn.model_selection import KFold
+import tqdm
 from .deconvolution import *
 
-
 def compute_bic(cost, n_u, n_cpg, n_ct, n_samples):
+    l = n_samples * n_cpg
     k = n_u * n_cpg + (n_ct + n_u - 1) * n_samples
-    bic = 2 * np.log(cost) + k * np.log(n_cpg)
+    bic = 2 * np.log(cost) * k * np.log(l) + (k * np.log(l) * (k + 1)) / (l - k - 1)
     return bic
 
 def compute_aic(cost, n_u, n_cpg, n_ct, n_samples):
+    l = n_samples * n_cpg
     k = n_u * n_cpg + (n_ct + n_u - 1) * n_samples
-    aic = 2 * (np.log(cost) + k)
+    aic = l * np.log(cost / l) + 2 * k + (2 * k * (k + 1)) / (l - k - 1)
     return aic
 
-# @njit
-def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed):
-    # Example parameters
-    max_range=meth_f.shape[1]
-    n_u_values = range(0, max_range + 1)  
+def compute_consensus_matrix(alpha_runs):
+    n_samples = alpha_runs[0].shape[1]  
+    n_runs = len(alpha_runs)  
+    consensus_matrix = np.zeros((n_samples, n_samples))
+
+    for alpha in alpha_runs:
+        cluster_assignments = np.argmax(alpha, axis=0)
+        for i in range(n_samples):
+            for j in range(n_samples):
+                if cluster_assignments[i] == cluster_assignments[j]:
+                    consensus_matrix[i, j] += 1
+
+    consensus_matrix /= n_runs
+    return consensus_matrix
+
+def compute_ccc(alpha_runs):
+    consensus_matrix = compute_consensus_matrix(alpha_runs)
+    distance_matrix = pdist(consensus_matrix, metric="euclidean")
+    linkage_matrix = linkage(distance_matrix, method="average")
+    ccc, _ = cophenet(linkage_matrix, distance_matrix)
+    return ccc
+
+def run_deconvolution(meth_f, counts, ref, n_u, init_option, seed):
+    if ref is not None:
+        u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg=wls_intercept, seed=seed)
+        u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2)
+        R = np.hstack((ref, u.reshape(-1, n_u)))
+    else:
+        u, alpha = unsupervised_deconv(meth_f, n_u, counts, init_option, 10000, 20, 1e-2, seed=seed)
+        R = u
+    return u, R, alpha
+
+def bicross_validation(meth_f, n_u, counts, n_folds, seed=None, ref=None, init_option="SVD"):
+    np.random.seed(seed)
     n_cpg, n_samples = meth_f.shape
-    if ref != None:
+    kf = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
+
+    test_errors = []
+
+    for train_idx, test_idx in kf.split(range(n_samples)):
+        mask = np.ones_like(meth_f, dtype=bool)
+        mask[:, test_idx] = False
+
+        Y_train = meth_f * mask
+        Y_test = meth_f[:, test_idx]
+        counts_train = counts * mask
+        counts_test = counts[:, test_idx]
+
+        u, R, alpha = run_deconvolution(Y_train, counts_train, ref, n_u, init_option, seed)
+
+        Y_pred = R @ alpha
+        test_error = np.linalg.norm(Y_test - Y_pred[:, test_idx], "fro") ** 2 / Y_test.size
+        test_errors.append(test_error)
+
+    mean_test_error = np.mean(test_errors)
+    return mean_test_error
+
+
+
+def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
+    max_range = meth_f.shape[1]
+    n_u_values = range(1, 30 + 1)
+    n_cpg, n_samples = meth_f.shape
+
+    if ref is not None:
         n_ct = ref.shape[1]
     else:
         n_ct = 0
 
-    best_ic = float('inf')
+    best_ic = float("inf") 
     best_n_u = None
     best_u_overall = None
     best_alpha_overall = None
+    list_result = []
 
-    for n_u in n_u_values:
-        # Run the deconvolution for the current n_u
-        if(n_u >= 1):
-            if ref != None:
-                u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg = wls_intercept, seed=seed)
-                u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2, seed=seed)
-                R = np.hstack((ref, u.reshape(-1, n_u)))
-            else:
-                u, alpha = unsupervised_deconv(meth_f, n_u, counts, init_option, 10000, 20, 1e-2, seed=seed)
-                R = u
+    for n_u in tqdm.tqdm(n_u_values):
+        if ic == "CCC":
+            alpha_runs = []
+            for restart in range(n_restarts):
+                u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed + restart)
+                alpha_runs.append(alpha)
 
-        else:
-            if ref != None:
-                alpha_tab = []
-                for k in range(n_samples):
-                    alpha_tab.append(wls_intercept(counts[:,k:k+1] * meth_f[:,k:k+1], counts[:,k:k+1], ref))
-                alpha = np.concatenate(alpha_tab, axis = 1)
-                R = ref
-            else:
-                continue
+            ic_result = -compute_ccc(alpha_runs)
 
-        cost = cost_f_w(meth_f, R, alpha, counts)
-        # Compute the BIC
-        if(ic == "BIC"):
-            func = compute_bic
-        elif(ic == "AIC"):
-            func = compute_aic
-            
-        ic_result = func(cost, n_u, n_cpg, n_ct, n_samples)
-    
-        # Update the best BIC and best n_u
+        elif ic == "BCV":
+            ic_result = bicross_validation(meth_f, n_u, counts, n_folds=n_restarts, seed=seed, ref=ref, init_option=init_option)
+            u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed)
+
+
+        else:  
+            u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed)
+            cost = cost_f_w(meth_f, R, alpha, counts)
+            ic_result = compute_bic(cost, n_u, n_cpg, n_ct, n_samples) if ic == "BIC" else compute_aic(cost, n_u, n_cpg, n_ct, n_samples)
+
+
+        list_result.append(ic_result)
+
         if ic_result < best_ic:
             best_ic = ic_result
-            best_alpha_overall = alpha
             best_n_u = n_u
-            if(n_u>=1):
-                best_u_overall = u
-    return best_u_overall, best_alpha_overall, best_n_u
+            best_alpha_overall = alpha
+            best_u_overall = u
+
+    return best_u_overall, best_alpha_overall, best_n_u, list_result
+

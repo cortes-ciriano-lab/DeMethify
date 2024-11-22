@@ -5,7 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 
-def plot_proportions(df, ci_df, outdir):
+def plot_proportions(df, ci_df, outdir, list_ic=None):
 
     unique_ct = list(df.index)
 
@@ -59,5 +59,30 @@ def plot_proportions(df, ci_df, outdir):
         plt.xticks(rotation=90)
     
         plt.savefig(outdir_plots + '/proportions_bar_' + sample[:-4] + '.png', dpi=300, bbox_inches='tight')
+
+    if list_ic:
+        
+        plt.figure(figsize=(8, 6))
+        x_values = [i + 1 for i in range(len(list_ic))]
+        plt.plot(x_values, list_ic, marker='x', linestyle='-', linewidth=1.5, markersize=8, markeredgecolor='red', label='IC Curve')
+        plt.xlabel("Number of Unknown Components", fontsize=12)
+        plt.ylabel("IC Values", fontsize=12)
+        plt.title("IC vs. Number of Components", fontsize=14)
+        plt.grid(alpha=0.3)
+        plt.legend()
+
+
+        min_ic_index = np.argmin(list_ic)  
+        min_ic_value = list_ic[min_ic_index]  
+        min_ic_components = x_values[min_ic_index]  
+        
+        annotation_x = min_ic_components
+        annotation_y = min_ic_value
+        
+        plt.text(annotation_x + 1, annotation_y + (0.1 * abs(annotation_y)), 
+                 f"Min IC at {min_ic_components}", color='red', fontsize=10)
+
+        plt.savefig(outdir_plots + '/ic_plot.png', dpi=300, bbox_inches='tight')
+    
 
     print("Plots generated in " + outdir_plots)

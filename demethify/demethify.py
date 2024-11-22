@@ -36,18 +36,13 @@ def main():
     parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
-    parser.add_argument('--ic', nargs="?", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
+    parser.add_argument('--ic', nargs="+", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
     parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
     parser.add_argument('--restart', nargs=1, type=int, help='Number of random restarts among which to select the one with the lowest cost/highest loglikelihood')
     parser.add_argument('--seed', nargs=1, type=int, default=1, help='Set a seed integer number for random number generation for reproducibility. ')
     parser.add_argument('--noprint', action="store_true", help='Doesnt show the logo.')
-
-    group = parser.add_mutually_exclusive_group()
-
-    # Add conflicting arguments to the group
-    group.add_argument('--bedmethyl', action='store_true', help="Flag to indicate that the input will be bedmethyl files, modkit style")
-    group.add_argument('--counts', nargs='+', type=str, help='Read counts file path')
+    parser.add_argument('--bedmethyl', action='store_true', help="Flag to indicate that the input will be bedmethyl files, modkit style")
 
     # Parse the arguments
     args = parser.parse_args()
@@ -83,6 +78,12 @@ def main():
         if args.nbunknown:
             sys.stderr.write("Error: --ic cannot be used with --nbunknown.\n")
             sys.exit(1)
+        if(len(args.ic) > 1):
+            nb_r = int(args.ic[1])
+        else:
+            nb_r = 5
+        args.ic = args.ic[0]
+        nb_r = int(nb_r)
 
     if(not args.noprint):
         print(logo)
@@ -148,7 +149,7 @@ def main():
         bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity, args.seed)
 
     if(args.ic):
-        ref_estimate, proportions, ic_n_u = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed)
+        ref_estimate, proportions, ic_n_u, list_ic = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed, n_restarts=nb_r)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)
@@ -231,7 +232,7 @@ def main():
         ci_df = pd.DataFrame()
         if(args.confidence):
             ci_df = bt_results[0]
-        plot_proportions(proportions, ci_df, outdir)
+        plot_proportions(proportions, ci_df, outdir, list_ic)
 
 if __name__ == "__main__":
 	main()

@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, cophenet
 from scipy.spatial.distance import pdist
-from sklearn.model_selection import KFold
 import tqdm
 from .deconvolution import *
 
@@ -49,33 +48,7 @@ def run_deconvolution(meth_f, counts, ref, n_u, init_option, seed):
         u, alpha = unsupervised_deconv(meth_f, n_u, counts, init_option, 10000, 20, 1e-2, seed=seed)
         R = u
     return u, R, alpha
-
-def bicross_validation(meth_f, n_u, counts, n_folds, seed=None, ref=None, init_option="SVD"):
-    np.random.seed(seed)
-    n_cpg, n_samples = meth_f.shape
-    kf = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
-
-    test_errors = []
-
-    for train_idx, test_idx in kf.split(range(n_samples)):
-        mask = np.ones_like(meth_f, dtype=bool)
-        mask[:, test_idx] = False
-
-        Y_train = meth_f * mask
-        Y_test = meth_f[:, test_idx]
-        counts_train = counts * mask
-        counts_test = counts[:, test_idx]
-
-        u, R, alpha = run_deconvolution(Y_train, counts_train, ref, n_u, init_option, seed)
-
-        Y_pred = R @ alpha
-        test_error = np.linalg.norm(Y_test - Y_pred[:, test_idx], "fro") ** 2 / Y_test.size
-        test_errors.append(test_error)
-
-    mean_test_error = np.mean(test_errors)
-    return mean_test_error
-
-
+    
 
 def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
     max_range = meth_f.shape[1]
@@ -101,10 +74,6 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
                 alpha_runs.append(alpha)
 
             ic_result = -compute_ccc(alpha_runs)
-
-        elif ic == "BCV":
-            ic_result = bicross_validation(meth_f, n_u, counts, n_folds=n_restarts, seed=seed, ref=ref, init_option=init_option)
-            u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed)
 
 
         else:  

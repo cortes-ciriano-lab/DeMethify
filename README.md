@@ -149,6 +149,37 @@ demethify \
 ![proportions_stackedbar](https://github.com/user-attachments/assets/a3d0e144-d222-4595-8fe0-8548c9f1c992)
 ![proportions_bar_sample1](https://github.com/user-attachments/assets/f1e5f9dd-21c2-4a0a-b806-fa00481d4972)
 
+### Model selection
+
+With the --ic flag, you can obtain the number of unknown cell types that minimises a set criterion, it can be corrected Bayesian Information Criterion with `BIC`, corrected Akaike Information Criterion with `AIC`, Brunet's Cophenetic Correlation Coefficient method with `CCC`, an adapted version of Owen and Parry's bi-cross-validation method with `BCV`, or an adapted version of the Minka-PCA method with `minka`. One can specify the number of restarts/number of folds for `CCC` and `BCV` by adding an int number argument after the method as in `--ic BCV 30`:
+
+
+```
+demethify \
+    --ref output_gen/ref_matrix.bed \
+    --methfreq output_gen/sample{1..10}.bed \
+    --bedmethyl \
+    --ic AIC \
+    --outdir bloblo \
+    --plot
+```
+
+![ic_plot](https://github.com/user-attachments/assets/242a736f-18d3-4fe3-a908-abff294f07ab)
+
+```
+demethify \
+    --ref output_gen/ref_matrix.bed \
+    --methfreq output_gen/sample{1..10}.bed \
+    --bedmethyl \
+    --ic CCC 20 \
+    --outdir bloblo \
+    --plot
+```
+
+![ic_plot](https://github.com/user-attachments/assets/6416daa0-4af6-4fab-9816-7c2b98d820b7)
+
+
+
 ## Identifiability of the estimation
 $n_s$ : number of samples
 $n_u$ : number of unknown cell types to estimate

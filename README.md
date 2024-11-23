@@ -5,26 +5,25 @@ DeMethify is a partial-reference based methylation deconvolution algorithm that 
 
 ## Flags and Arguments
 
-| Option           | Description                                                                                                                     |
-|------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| `--methfreq`     | Methylation frequency file path (values between 0 and 1)                                                                        |
-| `--ref`          | Methylation reference matrix file path                                                                                          |
-| `--iterations`   | Numbers of iterations for outer and inner loops (default without purity = 10000, 20; with purity = 100, 500)                     |
-| `--nbunknown`    | Number of unknown cell types to estimate                                                                                        |
-| `--purity`       | The purities of the samples in percent [0,100], if known                                                                        |
-| `--termination`  | Termination condition for cost function (default = 1e-2)                                                                        |
-| `--init`         | Initialisation option (default = random uniform)                                                                                |
-| `--outdir`       | Output directory                                                                                                                |
-| `--fillna`       | Replace every NA by 0 in the given data                                                                                         |
-| `--ic`           | Select number of unknown cell types by minimising an information criterion (AIC or BIC)                                         |
-| `--confidence`   | Outputs bootstrap confidence intervals, takes confidence level and bootstrap iteration numbers as input                         |
-| `--plot`         | Plot cell type proportions estimates for each sample, eventually with confidence intervals.                                     |
-| `--restart`      | Number of random restarts among which to select the one with the lowest cost/highest loglikelihood                              |
-| `--seed`         | Set a seed integer number for random number generation for reproducibility.                                                     |
-| `--noprint`      | Does not show the logo.                                                                                                         |
-| `--bedmethyl`    | Flag to indicate that the input will be bedmethyl files, modkit style                                                           |
-| `--counts`       | Read counts file path                                                                                                           |
-| `--noreadformat` | Flag to use when the data isn't using the read format (e.g., Illumina epic arrays)                                              |
+| Option               | Description                                                                                                                  |
+|----------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `--methfreq`         | Methylation frequency file path (values between 0 and 1).                                                                    |
+| `--ref`              | Methylation reference matrix file path.                                                                                      |
+| `--iterations`       | Numbers of iterations for outer and inner loops (default without purity = 10000, 20; with purity = 100, 500).                 |
+| `--nbunknown`        | Number of unknown cell types to estimate.                                                                                    |
+| `--purity`           | The purities of the samples in percent [0,100], if known.                                                                    |
+| `--termination`      | Termination condition for cost function (default = 1e-2).                                                                    |
+| `--init`             | Initialisation option (default = random uniform).                                                                            |
+| `--outdir`           | Output directory.                                                                                                            |
+| `--fillna`           | Replace every NA by 0 in the given data.                                                                                     |
+| `--ic`               | Select number of unknown cell types by minimising a criterion (AIC, BIC, CCC, BCV, minka).                                   |
+| `--confidence`       | Outputs bootstrap confidence intervals, takes confidence level and bootstrap iteration numbers as input.                      |
+| `--plot`             | Plot cell type proportions estimates for each sample, eventually with confidence intervals.                                  |
+| `--restart`          | Number of random restarts among which to select the one with the lowest cost/highest loglikelihood.                          |
+| `--seed`             | Set a seed integer number for random number generation for reproducibility.                                                  |
+| `--noprint`          | Does not show the logo.                                                                                                      |
+| `--bedmethyl`        | Flag to indicate that the input will be bedmethyl files, modkit style.                                                       |
+
 
 
 
@@ -173,11 +172,6 @@ In the partial-reference based case with purity, the estimation problem is ident
 
 $n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 2}$
 
-When $n_u = 1$, we have:
-
-$n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c + 1}$
-
-And with $n_c = 1$, we have:
 
 $n_s \geq 1$
 

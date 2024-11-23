@@ -217,6 +217,7 @@ demethify \
 
 ![ic_plot](https://github.com/user-attachments/assets/6416daa0-4af6-4fab-9816-7c2b98d820b7)
 
+DeMethify automatically chooses the first number of unknown cell types that minimises the chosen criterion and outputs its results, however it is recommended to try different criterions, to look at the plots, and to choose depending on the concrete situation. 
 
 
 ## Identifiability of the estimation

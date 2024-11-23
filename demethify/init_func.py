@@ -1,18 +1,28 @@
 import numpy as np
 from scipy.linalg import svd
-from scipy.optimize import nnls
+from sklearn.linear_model import LinearRegression
 from numpy.linalg import eig
-from scipy.optimize import minimize_scalar, nnls
+from scipy.optimize import minimize_scalar
 
-def constrained_nndsvd(Y, W1, rank, flag=0):
+def wls_intercept(x, d_x, R_full):
+    reg = LinearRegression(fit_intercept = True, positive = True).fit(R_full, x, d_x.ravel())
+    temp = reg.coef_.T
+               
+    P_deconv = P_deconv = temp / max(temp.sum(), 1e-10)
+               
+    return P_deconv
+
+def constrained_nndsvd(Y, W1, counts, rank, flag=0):
     n_features, n_samples = Y.shape
     k1 = W1.shape[1] 
 
     H1 = np.zeros((k1, n_samples))
-    for i in range(n_samples):
-        H1[:, i], _ = nnls(W1, Y[:, i])
+    for i in range(n_samples):     
+        H1[:, i] = wls_intercept(Y[:, i], counts[:, i] ,W1)
 
-    Y_residual = np.maximum(Y - W1 @ H1, 0)
+    has_nan_or_inf = np.isnan(H1).any() | np.isinf(H1).any()
+
+    Y_residual = np.maximum(Y - W1 @ H1, 1e-8)
 
     W2, H2 = nndsvd_initialize(Y_residual, rank=rank, flag=flag)
 
@@ -83,15 +93,15 @@ def loss(Y):
     return 1 / (2 * n_samples) * np.linalg.norm(Y_neg, ord='fro')**2
 
 
-def constrained_nn_ica(Y, W1, rank, t_tol=1e-1, t_neg=None, verbose=1, i_max=1e3):
+def constrained_nn_ica(Y, W1, counts, rank, t_tol=1e-1, t_neg=None, verbose=1, i_max=1e3):
     n_features, n_samples = Y.shape
     k1 = W1.shape[1]
 
     H1 = np.zeros((k1, n_samples))
     for i in range(n_samples):
-        H1[:, i] = nnls(W1, Y[:, i])[0]
+        H1[:, i] = wls_intercept(Y[:, i], counts[:, i] ,W1)
 
-    Y_residual = np.maximum(Y - W1 @ H1, 0)
+    Y_residual = np.maximum(Y - W1 @ H1, 1e-8)
 
     W2, H2 = run_nn_ica(Y_residual, rank=rank, t_tol=t_tol, t_neg=t_neg, verbose=verbose, i_max=i_max)
 

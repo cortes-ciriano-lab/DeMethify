@@ -1,7 +1,6 @@
 import numpy as np
 import numpy.random as rd
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 from numba import njit
 from .init_func import *
 
@@ -33,15 +32,6 @@ def projection_simplex_sort_2d(v, z=1):
     
     return w
 
-
-def wls_intercept(x, d_x, R_full):
-    reg = LinearRegression(fit_intercept = True, positive = True).fit(R_full, x, d_x.ravel())
-    temp = reg.coef_.T
-               
-    P_deconv = temp / temp.sum()
-               
-    return P_deconv
-
 def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed=None, rb_alg=wls_intercept):
     set_seed(seed)
     nb = meth_frequency.shape[1]
@@ -66,12 +56,12 @@ def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed=None, rb_
         alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), nb).T
 
     elif init_option == 'ICA':
-        W, alpha = constrained_nn_ica(meth_frequency, R_trunc, rank=n_u, t_tol=1e-1, verbose=0)
+        W, alpha = constrained_nn_ica(meth_frequency, R_trunc,  d_x, rank=n_u, t_tol=1e-1, verbose=0)
         alpha = projection_simplex_sort_2d(alpha)
         u = W[:, R_trunc.shape[1]:]
 
     elif init_option == 'SVD':
-        W, alpha = constrained_nndsvd(meth_frequency, R_trunc, rank=n_u, flag=0)
+        W, alpha = constrained_nndsvd(meth_frequency, R_trunc,  d_x, rank=n_u, flag=0)
         alpha = projection_simplex_sort_2d(alpha)
         u = W[:, R_trunc.shape[1]:]
 
@@ -255,12 +245,12 @@ def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_a
         alpha = rd.dirichlet(np.ones(R_trunc.shape[1] + n_u), nb).T
 
     elif init_option == 'ICA':
-        W, alpha = constrained_nn_ica(meth_frequency, R_trunc, rank=n_u, t_tol=1e-1, verbose=0)
+        W, alpha = constrained_nn_ica(meth_frequency, R_trunc,  d_x, rank=n_u, t_tol=1e-1, verbose=0)
         alpha = np.vstack((purity * projection_simplex_sort_2d(alpha[:-n_u]), (1 - purity) * projection_simplex_sort_2d(alpha[-n_u:])))
         u = W[:, R_trunc.shape[1]:]
 
     elif init_option == 'SVD':
-        W, alpha = constrained_nndsvd(meth_frequency, R_trunc, rank=n_u, flag=0)
+        W, alpha = constrained_nndsvd(meth_frequency, R_trunc,  d_x, rank=n_u, flag=0)
         alpha = np.vstack((purity * projection_simplex_sort_2d(alpha[:-n_u]), projection_simplex_sort_2d(alpha[-n_u:])))
         u = W[:, R_trunc.shape[1]:]
 

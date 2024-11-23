@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
     parser.add_argument('--purity', nargs='+', type=float, help="The purities of the samples in percent [0,100], if known")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
-    parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
+    parser.add_argument('--init', nargs="?", default='uniform_', help='Initialisation option, the default is uniform_, and the options are: uniform, uniform_, beta, SVD, ICA. ')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
     parser.add_argument('--ic', nargs="+", help='Select number of unknown cell types by minimising a criterion (AIC, BIC, CCC, BCV, minka)')

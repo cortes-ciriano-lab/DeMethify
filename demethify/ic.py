@@ -41,17 +41,17 @@ def compute_ccc(alpha_runs):
     ccc, _ = cophenet(linkage_matrix, distance_matrix)
     return ccc
 
-def run_deconvolution(meth_f, counts, ref, n_u, init_option, seed):
+def run_deconvolution(meth_f, counts, ref, n_u, init_option, seed, iter1, iter2, tol):
     if ref is not None:
         u, R, alpha = init_BSSMF_md(init_option, meth_f, counts, ref, n_u, rb_alg=wls_intercept, seed=seed)
-        u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u, 10000, 20, 1e-2)
+        u, alpha = mdwbssmf_deconv(u, R, alpha, meth_f, counts, ref, n_u,  n_iter1=iter1, n_iter2=iter2, tol= tol)
         R = np.hstack((ref, u.reshape(-1, n_u)))
     else:
-        u, alpha = unsupervised_deconv(meth_f, n_u, counts, init_option, 10000, 20, 1e-2, seed=seed)
+        u, alpha = unsupervised_deconv(meth_f, n_u, counts, init_option,  n_iter1=iter1, n_iter2=iter2, tol=tol, seed=seed)
         R = u
     return u, R, alpha
     
-def bicross_validation(meth_f, n_u, counts, n_folds=10, seed=None, ref=None, init_option="uniform_", fraction=0.3):
+def bicross_validation(meth_f, n_u, counts, iter1, iter2, tol, n_folds=10, seed=None, ref=None, init_option="uniform_", fraction=0.3):
     np.random.seed(seed)
     n_cpg, n_samples = meth_f.shape
 
@@ -68,7 +68,7 @@ def bicross_validation(meth_f, n_u, counts, n_folds=10, seed=None, ref=None, ini
             continue  
 
 
-        u, R, alpha = run_deconvolution(meth_f * train_mask, counts * train_mask, ref, n_u, init_option, seed)
+        u, R, alpha = run_deconvolution(meth_f * train_mask, counts * train_mask, ref, n_u, init_option, seed,  iter1, iter2, tol)
 
         Y_pred = R @ alpha  
 
@@ -160,7 +160,7 @@ def get_log_lik_partial(cov_evals, rank, shape):
 
 
 
-def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
+def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, iter1, iter2, tol, n_restarts=5):
     max_range = meth_f.shape[1]
     n_u_values = range(1, 25 + 1)
     n_cpg, n_samples = meth_f.shape
@@ -187,16 +187,16 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
         if ic == "CCC":
             alpha_runs = []
             for restart in range(n_restarts):
-                u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed + restart)
+                u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed + restart,  iter1, iter2, tol)
                 alpha_runs.append(alpha)
             ic_result = - compute_ccc(alpha_runs)
 
         elif ic == "BCV":
-            ic_result, u, alpha = bicross_validation(meth_f, n_u, counts, fraction=0.3, n_folds=n_restarts, seed=seed, ref=ref, init_option=init_option)
+            ic_result, u, alpha = bicross_validation(meth_f, n_u, counts, iter1, iter2, tol, fraction=0.3, n_folds=n_restarts, seed=seed, ref=ref, init_option=init_option)
 
 
         else:  
-            u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed)
+            u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed,  iter1, iter2, tol)
             cost = cost_f_w(meth_f, R, alpha, counts)
             ic_result = compute_bic(cost, n_u, n_cpg, n_ct, n_samples) if ic == "BIC" else compute_aic(cost, n_u, n_cpg, n_ct, n_samples)
 

@@ -33,10 +33,10 @@ def main():
     parser.add_argument('--nbunknown', nargs=1, type=int, help="Number of unknown cell types to estimate ")
     parser.add_argument('--purity', nargs='+', type=float, help="The purities of the samples in percent [0,100], if known")
     parser.add_argument('--termination', nargs=1, type=float, default=1e-2, help='Termination condition for cost function (default = 1e-2)')
-    parser.add_argument('--init', nargs="?", default='uniform_', help='Initialisation option, the default is uniform_, and the options are: uniform, uniform_, beta, SVD, ICA. ')
+    parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
-    parser.add_argument('--ic', nargs="+", help='Select number of unknown cell types by minimising a criterion (AIC, BIC, CCC, BCV, minka)')
+    parser.add_argument('--ic', nargs="+", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
     parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
     parser.add_argument('--restart', nargs=1, type=int, help='Number of random restarts among which to select the one with the lowest cost/highest loglikelihood')
@@ -62,6 +62,9 @@ def main():
             args.iterations = [100, 500]
         else:
             args.iterations = [10000, 20]
+            
+    if isinstance(args.termination, list):
+        args.termination = args.termination[0]
 
     if args.purity:
         purity = np.array(args.purity)
@@ -149,7 +152,7 @@ def main():
         bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity, args.seed)
 
     if(args.ic):
-        ref_estimate, proportions, ic_n_u, list_ic = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed, n_restarts=nb_r)
+        ref_estimate, proportions, ic_n_u, list_ic = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed, iter1=args.iterations[0],iter2=args.iterations[1], tol=args.termination, n_restarts=nb_r)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]
         header += unknown_header
         pd.DataFrame(ref_estimate).to_csv(outdir + '/methylation_profile_estimate.csv', index = False, header=unknown_header)

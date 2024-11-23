@@ -104,7 +104,7 @@ In the same way, the expected sample format is either a csv file or a bedmethyl 
 
 or:
 
-| Valid Coverage | Percent Modified    |
+| valid_coverage | percent_modified    |
 |----------------|---------------------|
 | 55             | 0.07272727272727273 |
 | 52             | 0.8846153846153846  |

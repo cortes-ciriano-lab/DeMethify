@@ -74,6 +74,62 @@ Here is a flowchart to run you through the different use cases for DeMethify.
 ![flowchart-fun](https://github.com/user-attachments/assets/eb174261-8852-4436-aaf7-13511f0fbdfe)
 
 
+### Input format
+
+The expected **reference** input format is either a **csv file** with methylation frequency values **between 0 and 1**, with rows corresponding to CpG sites and columns to cell types:
+
+
+| Monocytes_EPIC | B-cells_EPIC | CD4T-cells_EPIC | NK-cells_EPIC | CD8T-cells_EPIC | Neutrophils_EPIC |
+|----------------|--------------|-----------------|---------------|-----------------|------------------|
+| 0.9484         | 0.9447       | 0.9438          | 0.9394        | 0.9527          | 0.9354           |
+| 0.0426         | 0.0518       | 0.0425          | 0.0366        | 0.0398          | 0.0358           |
+| 0.9235         | 0.8866       | 0.8822          | 0.9164        | 0.8956          | 0.9253           |
+| 0.0499         | 0.0727       | 0.0468          | 0.0723        | 0.0536          | 0.0618           |
+| 0.7557         | 0.8279       | 0.854           | 0.8148        | 0.8813          | 0.729            |
+| 0.8648         | 0.865        | 0.8479          | 0.8596        | 0.8409          | 0.8644           |
+| 0.0205         | 0.2352       | 0.0904          | 0.0307        | 0.2144          | 0.0122           |
+
+
+
+or a **bedmethyl file** of the same kind, in this case you need to specify the `--bedmethyl` flag: 
+
+| chrom  | start      | end        | Monocytes_EPIC | B-cells_EPIC | CD4T-cells_EPIC | NK-cells_EPIC | CD8T-cells_EPIC | Neutrophils_EPIC |
+|--------|------------|------------|----------------|--------------|-----------------|---------------|-----------------|------------------|
+| chr12  | 121416512  | 121416513  | 0.9484         | 0.9447       | 0.9438          | 0.9394        | 0.9527          | 0.9354           |
+| chr1   | 6088550    | 6088551    | 0.0426         | 0.0518       | 0.0425          | 0.0366        | 0.0398          | 0.0358           |
+| chr1   | 202092005  | 202092006  | 0.9235         | 0.8866       | 0.8822          | 0.9164        | 0.8956          | 0.9253           |
+| chr17  | 29150100   | 29150101   | 0.0499         | 0.0727       | 0.0468          | 0.0723        | 0.0536          | 0.0618           |
+| chr1   | 61549982   | 61549983   | 0.7557         | 0.8279       | 0.854           | 0.8148        | 0.8813          | 0.729            |
+| chr3   | 195943366  | 195943367  | 0.8648         | 0.865        | 0.8479          | 0.8596        | 0.8409          | 0.8644           |
+| chr14  | 38091470   | 38091471   | 0.0205         | 0.2352       | 0.0904          | 0.0307        | 0.2144          | 0.0122           |
+
+In the same way, the expected sample format is either a csv file or a bedmethyl file where rows correspond to CpG sites, it should have one or two columns in whatever order corresponding to the methylation frequency "percent_modified" (required), and potentially total count "valid_coverage" (not required). There can be additional columns without changing anything. The methylation frequency for the bedmethyl files are expected to be percentages as they're usually given by tools like modkit, the methylation frequency for csv files are expected to be between 0 and 1 as usual:
+
+| chrom  | start      | end        | valid_coverage | count_modified | percent_modified       |
+|--------|------------|------------|----------------|----------------|-------------------------|
+| chr1   | 227058070  | 227058071  | 55             | 4              | 7.2727272727272725      |
+| chr1   | 3210424    | 3210425    | 52             | 46             | 88.46153846153845       |
+| chr8   | 144649678  | 144649679  | 52             | 21             | 40.38461538461539       |
+| chr1   | 3607425    | 3607426    | 41             | 31             | 75.60975609756098       |
+| chr22  | 31317787   | 31317788   | 53             | 4              | 7.547169811320755       |
+| chr20  | 42544716   | 42544717   | 50             | 0              | 0.0                     |
+| chr2   | 72360187   | 72360188   | 49             | 47             | 95.91836734693877       |
+| chr1   | 16164122   | 16164123   | 49             | 19             | 38.775510204081634      |
+
+or:
+
+| Valid Coverage | Percent Modified    |
+|----------------|---------------------|
+| 55             | 0.07272727272727273 |
+| 52             | 0.8846153846153846  |
+| 52             | 0.40384615384615385 |
+| 41             | 0.7560975609756098  |
+| 53             | 0.07547169811320755 |
+| 50             | 0.0                 |
+| 49             | 0.9591836734693877  |
+| 49             | 0.3877551020408163  |
+
+
 ### Unsupervised case
 
 If you've got no methylation reference matrix, you can still use DeMethify in a totally unsupervised fashion. Just leave out the --ref flag:

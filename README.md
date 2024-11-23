@@ -16,7 +16,7 @@ DeMethify is a partial-reference based methylation deconvolution algorithm that 
 | `--init`             | Initialisation option, the default is `uniform_`, and the options are: `uniform`, `uniform_`, `beta`, `SVD`, `ICA`.            |
 | `--outdir`           | Output directory.                                                                                                              |
 | `--fillna`           | Replace every NA by 0 in the given data.                                                                                       |
-| `--ic`               | Select number of unknown cell types by minimising a criterion (AIC, BIC, CCC, BCV, minka).                                     |
+| `--ic`               | Select number of unknown cell types by minimising a criterion (`AIC`, `BIC`, `CCC`, `BCV`, `minka`).                                     |
 | `--confidence`       | Outputs bootstrap confidence intervals, takes confidence level and bootstrap iteration numbers as input.                        |
 | `--plot`             | Plot cell type proportions estimates for each sample, eventually with confidence intervals.                                    |
 | `--restart`          | Number of random restarts among which to select the one with the lowest cost/highest loglikelihood.                            |

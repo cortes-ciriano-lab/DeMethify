@@ -36,7 +36,7 @@ def main():
     parser.add_argument('--init', nargs="?", default='uniform', help='Initialisation option (default = random uniform)')
     parser.add_argument('--outdir', nargs='?', required=True, help='Output directory')
     parser.add_argument('--fillna', action="store_true", help='Replace every NA by 0 in the given data')
-    parser.add_argument('--ic', nargs="+", help='Select number of unknown cell types by minimising an information criterion (AIC or BIC)')
+    parser.add_argument('--ic', nargs="+", help='Select number of unknown cell types by minimising a criterion (AIC, BIC, CCC, BCV, minka)')
     parser.add_argument('--confidence', nargs=2, type=int, help='Outputs bootstrap confidence intervals, takes confidence level and boostrap iteration numbers as input.')
     parser.add_argument('--plot', action="store_true", help='Plot cell type proportions estimates for each sample, eventually with confidence intervals. ')
     parser.add_argument('--restart', nargs=1, type=int, help='Number of random restarts among which to select the one with the lowest cost/highest loglikelihood')

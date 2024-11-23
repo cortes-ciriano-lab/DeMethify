@@ -94,7 +94,7 @@ or a **bedmethyl file** of the same kind, in this case you need to specify the `
 | chr12  | 121416512  | 121416513  | 0.9484         | 0.9447       | 0.9438          | 0.9394        | 0.9527          | 0.9354           |
 | chr1   | 6088550    | 6088551    | 0.0426         | 0.0518       | 0.0425          | 0.0366        | 0.0398          | 0.0358           |
 
-In the same way, the expected sample format is either a csv file or a bedmethyl file where rows correspond to CpG sites, it should have one or two columns in whatever order corresponding to the methylation frequency "percent_modified" (required), and potentially total count "valid_coverage" (not required). There can be additional columns without changing anything. The methylation frequency for the bedmethyl files are expected to be percentages as they're usually given by tools like modkit, the methylation frequency for csv files are expected to be between 0 and 1 as usual:
+In the same way, the **expected sample** format is either a csv file or a bedmethyl file where rows correspond to CpG sites, it should have one or two columns in whatever order corresponding to the methylation frequency "percent_modified" (required), and potentially total count "valid_coverage" (not required). There can be additional columns without changing anything. **The methylation frequency for the bedmethyl files are expected to be percentages** as they're usually given by tools like modkit, **the methylation frequency for csv files are expected to be between 0 and 1** as usual:
 
 | chrom  | start      | end        | valid_coverage | count_modified | percent_modified       |
 |--------|------------|------------|----------------|----------------|-------------------------|

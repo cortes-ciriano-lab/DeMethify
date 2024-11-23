@@ -137,7 +137,7 @@ def main():
                 temp["valid_coverage"] = 1
             if(args.fillna):
                 temp = temp.fillna(0)
-            list_meth_freq.append(temp["percent_modified"].values / 100)
+            list_meth_freq.append(temp["percent_modified"].values)
             list_counts.append(temp["valid_coverage"].values)
         meth_f = np.column_stack(list_meth_freq)
         counts = np.column_stack(list_counts)

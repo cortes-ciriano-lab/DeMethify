@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, cophenet
+from scipy.special import gammaln
 from scipy.spatial.distance import pdist
 from sklearn.model_selection import KFold
 import tqdm
@@ -84,15 +85,37 @@ def bicross_validation(meth_f, n_u, counts, n_folds=10, seed=None, ref=None, ini
     return total_press, best_u, best_alpha
 
 
-# Minka Rank Selection Functions
-def select_rank_minka(shape, svals):
-    n_samples, n_features = shape
+def estimate_H1(Y, W1, counts):
+    if W1 is None:
+        return None
+
+    n_features, n_samples = Y.shape
+    H1 = np.zeros((W1.shape[1], n_samples))  
+    for i in range(n_samples):
+        H1[:, i] = wls_intercept(Y[:, i], counts[:, i] ,W1)
+    return H1
+
+
+def select_rank_minka(Y, counts, W1=None):
+    n_features, n_samples = Y.shape
+
+    if W1 is not None:
+        H1 = estimate_H1(Y, W1, counts)
+
+        Residual = Y - W1 @ H1
+    else:
+        Residual = Y
+
+    
+    U, svals, Vt = np.linalg.svd(Residual, full_matrices=False)
+
     cov_evals = svals ** 2 / n_samples
-    ranks = np.arange(1, n_features)
-    log_liks = np.empty_like(ranks)
+
+    ranks = np.arange(1, len(svals))
+    log_liks = np.empty_like(ranks, dtype=float)
 
     for idx, rank in enumerate(ranks):
-        log_liks[idx] = get_log_lik(cov_evals=cov_evals, rank=rank, shape=shape)
+        log_liks[idx] = get_log_lik_partial(cov_evals, rank, (n_samples, n_features))
 
     log_liks = pd.Series(log_liks, index=ranks)
     log_liks.name = 'log_lik'
@@ -101,13 +124,13 @@ def select_rank_minka(shape, svals):
     rank_est = log_liks.idxmax()
     return rank_est, {'log_liks': log_liks, 'cov_evals': cov_evals}
 
-def get_log_lik(cov_evals, rank, shape):
+
+def get_log_lik_partial(cov_evals, rank, shape):
     n_samples, n_features = shape
     if not 1 <= rank <= n_features - 1:
-        raise ValueError("the tested rank should be in [1, n_features - 1]")
+        raise ValueError("The tested rank should be in [1, n_features - 1]")
 
     eps = 1e-15
-
     if cov_evals[rank - 1] < eps:
         return -np.inf
 
@@ -155,8 +178,7 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
 
 
     if ic == "minka":
-        _, svals, _ = np.linalg.svd(meth_f, full_matrices=False)
-        best_n_u, minka_result = select_rank_minka(meth_f.shape, svals)
+        best_n_u, minka_result = select_rank_minka(meth_f, counts, ref)
         best_ic = -minka_result['log_liks'][best_n_u]
         best_u_overall, _ , best_alpha_overall = run_deconvolution(meth_f, counts, ref, best_n_u, init_option, seed)
         return best_u_overall, best_alpha_overall, best_n_u, (-minka_result['log_liks']).to_list()

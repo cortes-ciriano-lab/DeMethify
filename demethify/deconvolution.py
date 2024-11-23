@@ -2,7 +2,7 @@ import numpy as np
 import numpy.random as rd
 import pandas as pd
 from numba import njit
-from .init_func import *
+from init_func import *
 
 def set_seed(seed=None):
     if seed is not None:

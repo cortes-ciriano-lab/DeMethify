@@ -79,8 +79,12 @@ def plot_proportions(df, ci_df, outdir, list_ic=None):
         annotation_x = min_ic_components
         annotation_y = min_ic_value
         
-        plt.text(annotation_x + 1, annotation_y + (0.1 * abs(annotation_y)), 
-                 f"Min IC at {min_ic_components}", color='red', fontsize=10)
+        plt.text(0.05, 0.95, 
+         f"Min IC at {min_ic_components}", 
+         color='red', fontsize=10, 
+         transform=plt.gca().transAxes, 
+         verticalalignment='top', 
+         horizontalalignment='left')
 
         plt.savefig(outdir_plots + '/ic_plot.png', dpi=300, bbox_inches='tight')
     

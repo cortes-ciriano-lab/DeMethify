@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, cophenet
 from scipy.spatial.distance import pdist
+from sklearn.model_selection import KFold
 import tqdm
 from .deconvolution import *
 
@@ -49,10 +50,96 @@ def run_deconvolution(meth_f, counts, ref, n_u, init_option, seed):
         R = u
     return u, R, alpha
     
+def bicross_validation(meth_f, n_u, counts, n_folds=10, seed=None, ref=None, init_option="uniform_", fraction=0.3):
+    np.random.seed(seed)
+    n_cpg, n_samples = meth_f.shape
+
+    total_press = 0
+    best_u = None
+    best_alpha = None
+    min_error = float('inf')
+
+    for _ in range(n_folds):
+        train_mask = np.random.rand(*meth_f.shape) < fraction
+        test_mask = ~train_mask
+
+        if np.sum(test_mask) == 0 or np.sum(train_mask) == 0:
+            continue  
+
+
+        u, R, alpha = run_deconvolution(meth_f * train_mask, counts * train_mask, ref, n_u, init_option, seed)
+
+        Y_pred = R @ alpha  
+
+        # Evaluate test error only for unknown components
+        test_error = np.linalg.norm((meth_f - Y_pred) * test_mask, "fro") ** 2 / np.sum(test_mask)
+        total_press += test_error
+
+        if test_error < min_error:
+            min_error = test_error
+            best_u = u
+            best_alpha = alpha
+
+    mean_press = total_press / n_folds if n_folds > 0 else float('inf')
+    return total_press, best_u, best_alpha
+
+
+# Minka Rank Selection Functions
+def select_rank_minka(shape, svals):
+    n_samples, n_features = shape
+    cov_evals = svals ** 2 / n_samples
+    ranks = np.arange(1, n_features)
+    log_liks = np.empty_like(ranks)
+
+    for idx, rank in enumerate(ranks):
+        log_liks[idx] = get_log_lik(cov_evals=cov_evals, rank=rank, shape=shape)
+
+    log_liks = pd.Series(log_liks, index=ranks)
+    log_liks.name = 'log_lik'
+    log_liks.index.name = 'rank'
+
+    rank_est = log_liks.idxmax()
+    return rank_est, {'log_liks': log_liks, 'cov_evals': cov_evals}
+
+def get_log_lik(cov_evals, rank, shape):
+    n_samples, n_features = shape
+    if not 1 <= rank <= n_features - 1:
+        raise ValueError("the tested rank should be in [1, n_features - 1]")
+
+    eps = 1e-15
+
+    if cov_evals[rank - 1] < eps:
+        return -np.inf
+
+    pu = -rank * np.log(2.0)
+    for i in range(1, rank + 1):
+        pu += gammaln((n_features - i + 1) / 2.0) - np.log(np.pi) * (n_features - i + 1) / 2.0
+
+    pl = np.sum(np.log(cov_evals[:rank]))
+    pl = -pl * n_samples / 2.0
+
+    v = max(eps, np.sum(cov_evals[rank:]) / (n_features - rank))
+    pv = -np.log(v) * n_samples * (n_features - rank) / 2.0
+
+    m = n_features * rank - rank * (rank + 1.0) / 2.0
+    pp = np.log(2.0 * np.pi) * (m + rank) / 2.0
+
+    pa = 0.0
+    spectrum_ = cov_evals.copy()
+    spectrum_[rank:n_features] = v
+    for i in range(rank):
+        for j in range(i + 1, len(cov_evals)):
+            pa += np.log((cov_evals[i] - cov_evals[j]) * (1.0 / spectrum_[j] - 1.0 / spectrum_[i])) + np.log(n_samples)
+
+    ll = pu + pl + pv + pp - pa / 2.0 - rank * np.log(n_samples) / 2.0
+    return ll
+
+
+
 
 def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
     max_range = meth_f.shape[1]
-    n_u_values = range(1, 30 + 1)
+    n_u_values = range(1, 25 + 1)
     n_cpg, n_samples = meth_f.shape
 
     if ref is not None:
@@ -66,14 +153,24 @@ def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, n_restarts=5):
     best_alpha_overall = None
     list_result = []
 
+
+    if ic == "minka":
+        _, svals, _ = np.linalg.svd(meth_f, full_matrices=False)
+        best_n_u, minka_result = select_rank_minka(meth_f.shape, svals)
+        best_ic = -minka_result['log_liks'][best_n_u]
+        best_u_overall, _ , best_alpha_overall = run_deconvolution(meth_f, counts, ref, best_n_u, init_option, seed)
+        return best_u_overall, best_alpha_overall, best_n_u, (-minka_result['log_liks']).to_list()
+
     for n_u in tqdm.tqdm(n_u_values):
         if ic == "CCC":
             alpha_runs = []
             for restart in range(n_restarts):
                 u, R, alpha = run_deconvolution(meth_f, counts, ref, n_u, init_option, seed + restart)
                 alpha_runs.append(alpha)
+            ic_result = - compute_ccc(alpha_runs)
 
-            ic_result = -compute_ccc(alpha_runs)
+        elif ic == "BCV":
+            ic_result, u, alpha = bicross_validation(meth_f, n_u, counts, fraction=0.3, n_folds=n_restarts, seed=seed, ref=ref, init_option=init_option)
 
 
         else:  

@@ -6,6 +6,7 @@ from sklearn.utils import resample
 from .deconvolution import *
 
 
+# Calculates bootstrap confidence intervals for estimating uncertainty in the deconvolution results.
 def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, n_iter1, n_iter2, tol, header, outdir, samples, purity, seed):
     supervised = n_u == 0
     a = 1 - confidence_level / 100

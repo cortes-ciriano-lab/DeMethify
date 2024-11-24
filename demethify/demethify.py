@@ -151,6 +151,7 @@ def main():
     if(args.confidence):
         bt_results = bt_ci(args.confidence[0], args.confidence[1], args.nbunknown[0], meth_f, counts, ref, args.init, args.iterations[0], args.iterations[1], args.termination, header, outdir, args.methfreq, args.purity, args.seed)
 
+    list_ic = None
     if(args.ic):
         ref_estimate, proportions, ic_n_u, list_ic = evaluate_best_ic(meth_f, ref, counts, args.init, args.ic, args.seed, iter1=args.iterations[0],iter2=args.iterations[1], tol=args.termination, n_restarts=nb_r)
         unknown_header = ["unknown_cell_" + str(i + 1) for i in range(ic_n_u)]

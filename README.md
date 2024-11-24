@@ -220,29 +220,31 @@ demethify \
 DeMethify automatically chooses the first number of unknown cell types that minimises the chosen criterion and outputs its results, however it is recommended to try different criterions, to look at the plots, and to choose depending on the concrete situation. 
 
 
-## Identifiability of the estimation
-$n_s$ : number of samples
-$n_u$ : number of unknown cell types to estimate
-$n_c$ : number of known cell types
-$n_{cpg}$ : number of CpG sites
+## Zone of overdetermination for the estimation problem
 
-In the partial-reference based case without purity, the estimation problem is identifiable when:
+- **$n_s$**: number of samples  
+- **$n_u$**: number of unknown cell types to estimate  
+- **$n_c$**: number of known cell types  
+- **$n_{cpg}$**: number of CpG sites  
 
-$n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 1}$
+In the partial-reference based case without purity, the estimation problem enters the realm of overdetermination (i.e., there are more equations than parameters to estimate) when:
 
-When $n_u = 1$, we have:
+$ n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 1} $
 
-$n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c}$
+When $n_u = 1$, this simplifies to:
 
-The ratio on the right is in $(1,2]$ for most real-life situations, which means that for the estimation problem to be identifiable in the partial-reference based case without purity with a single unknown cell type we need at least 2 samples. 
+$ n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c} $
 
-In the partial-reference based case with purity, the estimation problem is identifiable when:
+The ratio on the right is in $(1, 2]$ for most real-life situations, which means that in the partial-reference based case without purity, estimating a single unknown cell type requires at least 2 samples to enter the realm of overdetermination.
 
-$n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 2}$
+In the partial-reference based case with purity, the estimation problem enters the realm of overdetermination when:
+
+$ n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 2} $
+
+For $n_u = 1$ we have :
+
+$ n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c + 1} $
 
 
-$n_s \geq 1$
-
-Which means that the purity information makes the one sample estimation problem identifiable in the partial-reference based case with a single unknown cell type and a single known cell type. 
 
 

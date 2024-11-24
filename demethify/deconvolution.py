@@ -3,16 +3,20 @@ import numpy.random as rd
 import pandas as pd
 from numba import njit
 from .init_func import *
+# The reference-based algorithm is implemented in the init_func.py file as 'wls_intercept'.
 
+# Sets a random seed to ensure reproducibility of results during model initialization and optimization.
 def set_seed(seed=None):
     if seed is not None:
         rd.seed(seed)
 
+# Calculates the weighted cost function for evaluating the goodness of fit between the observed and estimated methylation data.
 @njit
 def cost_f_w(y, R, alpha, d_x):
     # return np.linalg.norm((y - R @ alpha))**2
     return np.linalg.norm(np.sqrt(d_x) * (y - R @ alpha))**2
 
+# Projects each column of the input matrix onto the probability simplex using Michelot's algorithm, ensuring non-negative components that sum to one.
 @njit
 def projection_simplex_sort_2d(v, z=1):
     p, n = v.shape
@@ -32,6 +36,7 @@ def projection_simplex_sort_2d(v, z=1):
     
     return w
 
+# Initializes the parameters for the partial reference-based algorithm.
 def init_BSSMF_md(init_option, meth_frequency, d_x, R_trunc, n_u, seed=None, rb_alg=wls_intercept):
     set_seed(seed)
     nb = meth_frequency.shape[1]
@@ -98,6 +103,7 @@ def update_alpha(n_iter2, alpha, a2, l_h_, l_h, alpha_, R, d_x, meth_frequency):
 
 
 
+# Implements a reference-free deconvolution algorithm for estimating cell-type proportions without using any reference methylation profiles.
 def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n_iter2=20, tol=1e-3, seed=None):
     set_seed(seed)
     nb = meth_frequency.shape[1]
@@ -179,6 +185,7 @@ def unsupervised_deconv(meth_frequency, n_u, d_x, init_option, n_iter1=100000, n
     
 
 
+# Performs partial reference-based deconvolution using known reference profiles.
 # @njit
 def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=100000, n_iter2=50, tol=1e-3):
     nb_cpg, nb_celltypes = R_trunc.shape
@@ -217,6 +224,7 @@ def mdwbssmf_deconv(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, n_iter1=1000
 
 
 
+# Initializes the purity-constrained partial reference-based deconvolution algorithm to enhance model accuracy.
 def init_BSSMF_md_p(init_option, meth_frequency, d_x, R_trunc, n_u, purity, rb_alg = wls_intercept, seed=None):
     set_seed(seed)
     nb = meth_frequency.shape[1]
@@ -293,6 +301,7 @@ def frank_wolfe_nmf(W1, W2, meth_frequency, alpha1_init, alpha2_init, purity, ma
 
     return alpha1, alpha2
 
+# Runs the purity-constrained partial reference-based deconvolution algorithm for a more refined solution.
 @njit
 def mdwbssmf_deconv_p(u, R, alpha, meth_frequency, d_x, R_trunc, n_u, purity, n_iter1=100, n_iter2=500, tol=1e-3):
     nb_cpg, nb_celltypes = R_trunc.shape

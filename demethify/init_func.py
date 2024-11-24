@@ -4,6 +4,7 @@ from sklearn.linear_model import LinearRegression
 from numpy.linalg import eig
 from scipy.optimize import minimize_scalar
 
+# Performs weighted least squares regression with an intercept to estimate cell type proportions using reference profiles.
 def wls_intercept(x, d_x, R_full):
     reg = LinearRegression(fit_intercept = True, positive = True).fit(R_full, x, d_x.ravel())
     temp = reg.coef_.T
@@ -12,6 +13,7 @@ def wls_intercept(x, d_x, R_full):
                
     return P_deconv
 
+# Adapts the Nonnegative Double Singular Value Decomposition (NNDSVD) initialization method to fit the partial reference-based model.
 def constrained_nndsvd(Y, W1, counts, rank, flag=0):
     n_features, n_samples = Y.shape
     k1 = W1.shape[1] 
@@ -93,6 +95,7 @@ def loss(Y):
     return 1 / (2 * n_samples) * np.linalg.norm(Y_neg, ord='fro')**2
 
 
+# Adapts the Nonnegative Independent Component Analysis (NN-ICA) initialization to suit partial reference-based deconvolution.
 def constrained_nn_ica(Y, W1, counts, rank, t_tol=1e-1, t_neg=None, verbose=1, i_max=1e3):
     n_features, n_samples = Y.shape
     k1 = W1.shape[1]

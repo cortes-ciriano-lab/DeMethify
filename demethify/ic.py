@@ -7,12 +7,14 @@ from sklearn.model_selection import KFold
 import tqdm
 from .deconvolution import *
 
+# Computes the corrected Bayesian Information Criterion (BIC) for selecting the best model based on the trade-off between complexity and goodness of fit.
 def compute_bic(cost, n_u, n_cpg, n_ct, n_samples):
     l = n_samples * n_cpg
     k = n_u * n_cpg + (n_ct + n_u - 1) * n_samples
     bic = 2 * np.log(cost) * k * np.log(l) + (k * np.log(l) * (k + 1)) / (l - k - 1)
     return bic
 
+# Computes the corrected Akaike Information Criterion (AIC) to compare different models and select the best one.
 def compute_aic(cost, n_u, n_cpg, n_ct, n_samples):
     l = n_samples * n_cpg
     k = n_u * n_cpg + (n_ct + n_u - 1) * n_samples
@@ -34,6 +36,7 @@ def compute_consensus_matrix(alpha_runs):
     consensus_matrix /= n_runs
     return consensus_matrix
 
+# Calculates Brunet's Cophenetic Correlation Coefficient (CCC) to assess the stability of clustering across different factorization runs.
 def compute_ccc(alpha_runs):
     consensus_matrix = compute_consensus_matrix(alpha_runs)
     distance_matrix = pdist(consensus_matrix, metric="euclidean")
@@ -51,6 +54,7 @@ def run_deconvolution(meth_f, counts, ref, n_u, init_option, seed, iter1, iter2,
         R = u
     return u, R, alpha
     
+# Implements Owen and Perry's bi-cross validation technique for selecting the best model rank.
 def bicross_validation(meth_f, n_u, counts, iter1, iter2, tol, n_folds=10, seed=None, ref=None, init_option="uniform_", fraction=0.3):
     np.random.seed(seed)
     n_cpg, n_samples = meth_f.shape
@@ -96,6 +100,7 @@ def estimate_H1(Y, W1, counts):
     return H1
 
 
+# Selects the rank for matrix factorization using Minka's PCA method, adapted to handle cases with partial reference information.
 def select_rank_minka(Y, counts, W1=None):
     n_features, n_samples = Y.shape
 
@@ -160,6 +165,7 @@ def get_log_lik_partial(cov_evals, rank, shape):
 
 
 
+# Evaluates different criteria to determine the optimal number of unknown cell types, then performs deconvolution using this selected number.
 def evaluate_best_ic(meth_f, ref, counts, init_option, ic, seed, iter1, iter2, tol, n_restarts=5):
     max_range = meth_f.shape[1]
     n_u_values = range(1, 25 + 1)

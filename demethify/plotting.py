@@ -5,6 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 
+# Generates plots to visualize the estimated proportion vectors and evaluate the performance of various model selection criteria.
 def plot_proportions(df, ci_df, outdir, list_ic=None):
 
     unique_ct = list(df.index)

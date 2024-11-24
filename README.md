@@ -229,21 +229,21 @@ DeMethify automatically chooses the first number of unknown cell types that mini
 
 In the partial-reference based case without purity, the estimation problem enters the realm of overdetermination (i.e., there are more equations than parameters to estimate) when:
 
-$ n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 1} $
+$n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 1}$
 
 When $n_u = 1$, this simplifies to:
 
-$ n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c} $
+$n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c}$
 
 The ratio on the right is in $(1, 2]$ for most real-life situations, which means that in the partial-reference based case without purity, estimating a single unknown cell type requires at least 2 samples to enter the realm of overdetermination.
 
 In the partial-reference based case with purity, the estimation problem enters the realm of overdetermination when:
 
-$ n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 2} $
+$n_s \geq \frac{n_u n_{cpg}}{n_{cpg} - n_u - n_c + 2}$
 
 For $n_u = 1$ we have :
 
-$ n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c + 1} $
+$n_s \geq \frac{n_{cpg}}{n_{cpg} - n_c + 1}$
 
 
 

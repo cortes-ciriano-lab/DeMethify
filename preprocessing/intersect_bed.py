@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import argparse
 
-bedtools_path = "/opt/homebrew/bin/bedtools"
+bedtools_path = "/data/rds/DMP/UCEC/GENEVOD/mbourdim/storage_stuff/envs/sturgeon/bin/bedtools"
 
 def get_column_header(bed_file):
     with open(bed_file, 'r') as f:
@@ -68,10 +68,8 @@ def intersect_bed_files(bed_files, output_folder):
         end_idx = start_idx + cols_bed[i]
         df_selected = df.iloc[:, start_idx:end_idx]
         df_selected.columns = total_header[start_idx:end_idx]
-        output_file = bed_file[:-4] + "_intersect.bed"
+        output_file = bed_file[:-4].split("/")[-1] + "_intersect.bed"
 
-        if i >= 1:
-            df_selected['percent_modified'] = (df_selected['count_modified'] / df_selected['valid_coverage']) * 100
             
         df_selected.to_csv(output_folder + "/" + output_file, sep='\t', header=True, index=False)
         start_idx = end_idx
@@ -80,8 +78,8 @@ def intersect_bed_files(bed_files, output_folder):
 
 def main():
     parser = argparse.ArgumentParser(description="Intersect multiple BED files using bedtools.")
-    parser.add_argument('bed_files', nargs='+', help="List of BED files to intersect (at least two files required).")
-    parser.add_argument('out', nargs='?', type=str, default=".", help='Path to output folder')
+    parser.add_argument('--bed_files', nargs='+', help="List of BED files to intersect (at least two files required).")
+    parser.add_argument('--out', nargs='?', type=str, default=".", help='Path to output folder')
     
     args = parser.parse_args()
 

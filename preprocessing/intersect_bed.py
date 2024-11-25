@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import argparse
 
-bedtools_path = "/opt/homebrew/bin/bedtools"
+bedtools_path = "/opt/homebrew/bin/bedtools" # Change accordingly
 
 def get_column_header(bed_file):
     with open(bed_file, 'r') as f:
@@ -78,7 +78,7 @@ def intersect_bed_files(bed_files, output_folder):
 
 def main():
     parser = argparse.ArgumentParser(description="Intersect multiple BED files using bedtools.")
-    parser.add_argument('--bed_files', nargs='+', help="List of BED files to intersect (at least two files required).")
+    parser.add_argument('--bed', nargs='+', help="List of BED files to intersect (at least two files required).")
     parser.add_argument('--out', nargs='?', type=str, default=".", help='Path to output folder')
     
     args = parser.parse_args()
@@ -88,7 +88,7 @@ def main():
         print(f'Creating directory {output_folder} to store results')
         os.mkdir(output_folder)
     
-    intersect_bed_files(args.bed_files, output_folder)
+    intersect_bed_files(args.bed, output_folder)
 
 if __name__ == "__main__":
     main()

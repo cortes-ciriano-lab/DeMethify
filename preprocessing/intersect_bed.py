@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import argparse
 
-bedtools_path = "/data/rds/DMP/UCEC/GENEVOD/mbourdim/storage_stuff/envs/sturgeon/bin/bedtools"
+bedtools_path = "/opt/homebrew/bin/bedtools"
 
 def get_column_header(bed_file):
     with open(bed_file, 'r') as f:

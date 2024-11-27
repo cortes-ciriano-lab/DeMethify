@@ -52,17 +52,6 @@ def intersect_bed_files(bed_files, output_folder):
 
     df = pd.read_csv(current_intersection, sep='\t', header=None)
 
-    if (df[2] - df[1] >= 2).any():
-        cols_sum = {}
-    
-        for k in range(len(total_header)):
-            if total_header[k] == "count_modified" or total_header[k] == "valid_coverage":
-                cols_sum[k] = "sum"
-            else:
-                cols_sum[k] = "first"
-
-        df = df.groupby([0, 1, 2], as_index=False).agg(cols_sum)
-
     start_idx = 0
     for i, bed_file in enumerate(bed_files):
         end_idx = start_idx + cols_bed[i]

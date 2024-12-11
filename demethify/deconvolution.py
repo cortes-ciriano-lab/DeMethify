@@ -85,7 +85,7 @@ def update_u(u, alpha, n_iter2, a1, l_w_, l_w, u_, meth_frequency, R_trunc, n_u,
         beta_w = min((a0 - 1) / a1, 0.9999 *  np.sqrt(l_w_ / l_w))
         u_temp = u + beta_w * (u - u_)
         u_ = u
-        u = np.clip((u_temp + (d_x * ((meth_frequency - R_trunc @ alpha[:-n_u] - u_temp @ alpha[-n_u:])) @ alpha[-n_u:].T) / l_w), 1e-8, 1 - 1e-8)
+        u = np.clip((u_temp + (d_x * ((meth_frequency - R_trunc @ alpha[:-n_u] - u_temp @ alpha[-n_u:])) @ alpha[-n_u:].T) / l_w), 0, 1)
         l_w_ = l_w
     return u, u_, a1, l_w_
     

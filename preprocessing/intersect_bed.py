@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import argparse
 
-bedtools_path = "/opt/homebrew/bin/bedtools" # Change accordingly
+bedtools_path = "bedtools" # Change accordingly
 
 def get_column_header(bed_file):
     with open(bed_file, 'r') as f:

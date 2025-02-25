@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 from scipy.linalg import svd
 
-def feature_select(bedfile, n, output_folder, method="var"):
+def feature_select(bedfile, n, output_folder, method="svd"):
     df = pd.read_csv(bedfile, sep='\t')
     df_cleaned = df.dropna()
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument('--bed', type=str, required=True, help='Path to the input BED file')
     parser.add_argument('--n', type=int, required=True, help='Number of top rows to select')
     parser.add_argument('--out', nargs='?', type=str, default=".", help='Path to output folder')
-    parser.add_argument('--method', type=str, choices=["var", "svd"], default="var")
+    parser.add_argument('--method', type=str, choices=["var", "svd"], default="svd")
 
     args = parser.parse_args()
     feature_select(args.bed, args.n, args.out, args.method)

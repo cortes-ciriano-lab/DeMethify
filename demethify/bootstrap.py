@@ -21,10 +21,13 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
     if not supervised:
         ref_estimate_list = [[] for k in range(n_u)]
 
+    if seed is not None:
+        np.random.seed(seed)
+
     tqdm_disable = not sys.stdout.isatty()
     
     for i in tqdm.tqdm(range(n_bootstrap), disable=tqdm_disable):
-        meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref, random_state=seed)
+        meth_f_resampled, counts_resampled, ref_resampled = resample(meth_f, counts, ref)
 
         if(not supervised):
             if yes_purity:

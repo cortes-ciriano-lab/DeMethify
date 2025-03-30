@@ -28,8 +28,7 @@ def bt_ci(confidence_level, n_bootstrap, n_u, meth_f, counts, ref, init_option, 
 
         if(not supervised):
             if yes_purity:
-                
-                u, R, alpha = init_BSSMF_md_p(init_option, meth_f, counts, ref, n_u, purity, seed=seed, rb_alg = wls_intercept)
+                u, R, alpha = init_BSSMF_md_p(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, purity, seed=seed, rb_alg = wls_intercept)
                 ref_estimate, proportions = mdwbssmf_deconv_p(u, R, alpha, meth_f_resampled, counts_resampled, ref_resampled, n_u, purity, n_iter1, n_iter2, tol)
             else:
                 u, R, alpha = init_BSSMF_md(init_option, meth_f_resampled, counts_resampled, ref_resampled, n_u, rb_alg=wls_intercept, seed=seed)
